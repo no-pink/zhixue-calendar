@@ -38,7 +38,8 @@ function initDB() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       plan_id INTEGER NOT NULL,
       date TEXT NOT NULL,
-      hour INTEGER NOT NULL CHECK(hour >= 0 AND hour <= 23),
+      start_hour INTEGER NOT NULL CHECK(start_hour >= 0 AND start_hour < 24),
+      end_hour INTEGER NOT NULL CHECK(end_hour > 0 AND end_hour <= 24),
       description TEXT NOT NULL,
       completed INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),
@@ -59,6 +60,14 @@ function initDB() {
     CREATE INDEX IF NOT EXISTS idx_tasks_plan_date ON tasks(plan_id, date);
     CREATE INDEX IF NOT EXISTS idx_submissions_task ON submissions(task_id);
   `);
+
+  // Migrate old database with `hour` column
+  const hasHourCol = db.prepare("SELECT name FROM pragma_table_info('tasks') WHERE name = 'hour'").get();
+  if (hasHourCol) {
+    db.exec(`ALTER TABLE tasks ADD COLUMN start_hour INTEGER;`);
+    db.exec(`ALTER TABLE tasks ADD COLUMN end_hour INTEGER;`);
+    db.exec(`UPDATE tasks SET start_hour = hour, end_hour = hour + 1;`);
+  }
 
   return db;
 }

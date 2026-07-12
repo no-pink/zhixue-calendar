@@ -166,7 +166,8 @@ export default function CalendarView({
       </div>
 
       {/* Calendar grid */}
-      <div className="grid grid-cols-7 gap-1 auto-rows-fr">
+      <div className="overflow-x-auto">
+      <div className="grid grid-cols-7 gap-1 auto-rows-fr min-w-[480px]">
         {Array.from({ length: startDayOfWeek }).map((_, i) => (
           <div key={`empty-${i}`} />
         ))}
@@ -231,6 +232,7 @@ export default function CalendarView({
           );
         })}
       </div>
+      </div>{/* end overflow-x-auto */}
     </div>
   );
 }

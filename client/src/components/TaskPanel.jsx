@@ -334,17 +334,23 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
               {conflictText}
             </div>
             <div className="flex gap-2">
+              <button onClick={() => resolveConflict('keep_both')}
+                className="flex-1 py-2 bg-green-500 hover:bg-green-600 text-white text-xs rounded-lg transition-colors">
+                全都要 — 新旧并行
+              </button>
               <button onClick={() => resolveConflict('skip')}
                 className="flex-1 py-2 border border-gray-200 text-gray-600 text-xs rounded-lg hover:bg-gray-50 transition-colors">
-                跳过 — 保留已有
+                跳过 — 不加新的
               </button>
               <button onClick={() => resolveConflict('overwrite')}
                 className="flex-1 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs rounded-lg transition-colors">
-                覆盖 — 替换为新任务
+                替换 — 新的覆盖旧的
               </button>
+            </div>
+            <div className="text-center pt-1">
               <button onClick={() => resolveConflict('cancel')}
-                className="px-3 py-2 text-xs text-gray-400 hover:text-gray-600 transition-colors">
-                取消
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                取消操作
               </button>
             </div>
           </div>

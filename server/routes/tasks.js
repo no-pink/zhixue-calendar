@@ -66,7 +66,7 @@ function findOverlaps(db, planId, date, startHour, endHour, excludeTaskId) {
   return db.prepare(query).all(...params);
 }
 
-// Create task with optional submissions and conflict check
+// Create task — check overlaps first, block until user decides
 router.post('/', (req, res) => {
   const { plan_id, date, start_hour, end_hour, hour, description, submissions, force } = req.body;
   const sh = start_hour ?? hour;
@@ -79,7 +79,7 @@ router.post('/', (req, res) => {
   const plan = db.prepare('SELECT * FROM plans WHERE id = ? AND user_id = ?').get(plan_id, req.user.id);
   if (!plan) return res.status(404).json({ error: '计划不存在' });
 
-  // Check overlaps
+  // Report overlaps before creating (unless force)
   const overlaps = findOverlaps(db, plan_id, date, sh, eh);
   if (overlaps.length > 0 && !force) {
     return res.json({ conflict: true, overlapping: overlaps });
@@ -110,7 +110,7 @@ router.post('/upload', upload.single('file'), (req, res) => {
   res.json({ file_path: req.file.filename, original_name: req.file.originalname });
 });
 
-// Update task with conflict check
+// Update task — check overlaps first, block until user decides
 router.put('/:id', (req, res) => {
   const { description, completed, start_hour, end_hour, submissions, force } = req.body;
   const db = getDB();
@@ -124,14 +124,17 @@ router.put('/:id', (req, res) => {
   const newStart = start_hour ?? task.start_hour;
   const newEnd = end_hour ?? task.end_hour;
 
-  // Check overlaps when changing time
-  if (start_hour !== undefined || end_hour !== undefined) {
+  // Report overlaps before updating (unless force)
+  if ((start_hour !== undefined || end_hour !== undefined) && !force) {
     const overlaps = findOverlaps(db, task.plan_id, task.date, newStart, newEnd, task.id);
-    if (overlaps.length > 0 && !force) {
+    if (overlaps.length > 0) {
       return res.json({ conflict: true, overlapping: overlaps });
     }
-    // Remove overlapping tasks if force
-    if (force && overlaps.length > 0) {
+  }
+
+  if (force && (start_hour !== undefined || end_hour !== undefined)) {
+    const overlaps = findOverlaps(db, task.plan_id, task.date, newStart, newEnd, task.id);
+    if (overlaps.length > 0) {
       const ids = overlaps.map(o => o.id);
       db.prepare(`DELETE FROM tasks WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
     }
@@ -197,7 +200,7 @@ router.post('/batch', (req, res) => {
   const plan = db.prepare('SELECT * FROM plans WHERE id = ? AND user_id = ?').get(plan_id, req.user.id);
   if (!plan) return res.status(404).json({ error: '计划不存在' });
 
-  const insert = db.prepare('INSERT OR IGNORE INTO tasks (plan_id, date, start_hour, end_hour, description) VALUES (?, ?, ?, ?, ?)');
+  const insert = db.prepare('INSERT INTO tasks (plan_id, date, start_hour, end_hour, description) VALUES (?, ?, ?, ?, ?)');
   const count = { created: 0, skipped: 0, overwritten: 0 };
 
   const transaction = db.transaction(() => {
@@ -207,14 +210,20 @@ router.post('/batch', (req, res) => {
         const overlaps = findOverlaps(db, plan_id, date, startH, endH);
 
         if (overlaps.length > 0) {
-          if (conflict_mode === 'overwrite') {
-            const ids = overlaps.map(o => o.id);
-            db.prepare(`DELETE FROM tasks WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
-            insert.run(plan_id, date, startH, endH, template);
-            count.overwritten += overlaps.length;
-          } else {
-            count.skipped += overlaps.length;
-          }
+        if (conflict_mode === 'overwrite') {
+          const ids = overlaps.map(o => o.id);
+          db.prepare(`DELETE FROM tasks WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
+          insert.run(plan_id, date, startH, endH, template);
+          count.overwritten += overlaps.length;
+          count.created++;
+        } else if (conflict_mode === 'skip') {
+          // skip = keep old + don't add new (用户主动选择不要)
+          count.skipped += overlaps.length;
+        } else {
+          // keep_both (default when no specific mode) = keep old + add new too
+          insert.run(plan_id, date, startH, endH, template);
+          count.created++;
+        }
         } else {
           insert.run(plan_id, date, startH, endH, template);
           count.created++;
@@ -250,7 +259,6 @@ router.post('/batch-simple', (req, res) => {
     }
   }
 
-  // Insert on all dates
   const insert = db.prepare('INSERT INTO tasks (plan_id, date, start_hour, end_hour, description) VALUES (?, ?, ?, ?, ?)');
   let created = 0, skipped = 0;
 
@@ -263,9 +271,12 @@ router.post('/batch-simple', (req, res) => {
           db.prepare(`DELETE FROM tasks WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
           insert.run(plan_id, date, start_hour, end_hour, description);
           created++;
-        } else {
-          // skip — don't create on this date
+        } else if (conflict_mode === 'skip') {
           skipped++;
+        } else {
+          // keep_both (or default) — add new alongside old
+          insert.run(plan_id, date, start_hour, end_hour, description);
+          created++;
         }
       } else {
         insert.run(plan_id, date, start_hour, end_hour, description);

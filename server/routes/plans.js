@@ -52,11 +52,24 @@ router.put('/:id', (req, res) => {
   res.json(updated);
 });
 
-// Delete plan
+// Delete plan (cascades to tasks and submissions, also deletes files)
 router.delete('/:id', (req, res) => {
   const db = getDB();
+  const path = require('path');
+  const fs = require('fs');
   const plan = db.prepare('SELECT * FROM plans WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
   if (!plan) return res.status(404).json({ error: '计划不存在' });
+
+  // Delete all uploaded files belonging to this plan's tasks
+  const files = db.prepare(`
+    SELECT s.file_path FROM submissions s
+    JOIN tasks t ON t.id = s.task_id
+    WHERE t.plan_id = ? AND s.file_path IS NOT NULL
+  `).all(req.params.id);
+  files.forEach(s => {
+    const fp = path.join(__dirname, '../uploads', s.file_path);
+    if (fs.existsSync(fp)) fs.unlinkSync(fp);
+  });
 
   db.prepare('DELETE FROM plans WHERE id = ?').run(req.params.id);
   res.json({ message: '删除成功' });

@@ -202,11 +202,20 @@ router.patch('/:id/toggle', (req, res) => {
 // Delete task
 router.delete('/:id', (req, res) => {
   const db = getDB();
+  const path = require('path');
+  const fs = require('fs');
   const task = db.prepare(`
     SELECT t.* FROM tasks t JOIN plans p ON t.plan_id = p.id
     WHERE t.id = ? AND p.user_id = ?
   `).get(req.params.id, req.user.id);
   if (!task) return res.status(404).json({ error: '任务不存在' });
+
+  // Delete associated files from disk
+  const subs = db.prepare('SELECT file_path FROM submissions WHERE task_id = ? AND file_path IS NOT NULL').all(req.params.id);
+  subs.forEach(s => {
+    const fp = path.join(__dirname, '../uploads', s.file_path);
+    if (fs.existsSync(fp)) fs.unlinkSync(fp);
+  });
 
   db.prepare('DELETE FROM tasks WHERE id = ?').run(req.params.id);
   res.json({ message: '删除成功' });

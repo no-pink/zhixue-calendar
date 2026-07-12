@@ -85,16 +85,11 @@ router.post('/', (req, res) => {
     return res.json({ conflict: true, overlapping: overlaps });
   }
 
-  // Check for same-name task within the same plan+date (exclude same-id for edits)
-  const sameNameQuery = `SELECT id FROM tasks WHERE plan_id = ? AND date = ? AND description = ?`;
-  const sameNameParams = [plan_id, date, description];
-  if (req.body.exclude_task_id) {
-    sameNameQuery += ` AND id != ?`;
-    sameNameParams.push(req.body.exclude_task_id);
-  }
-  const sameName = db.prepare(sameNameQuery).get(...sameNameParams);
-  if (sameName && !force && !req.body.skip_conflict_check) {
-    return res.json({ conflict: true, overlapping: [{ start_hour: sh, end_hour: eh, description: description + ' (同名)' }] });
+  // Check for same-name + overlapping (same plan+date+name where times overlap)
+  const sameName = db.prepare(`SELECT id, start_hour, end_hour FROM tasks WHERE plan_id = ? AND date = ? AND description = ? AND start_hour < ? AND end_hour > ?`)
+    .get(plan_id, date, description, eh, sh);
+  if (sameName) {
+    return res.json({ conflict: true, overlapping: [{ start_hour: sh, end_hour: eh, description: description + ' (同名且时段重叠)' }] });
   }
 
   // Remove overlapping tasks if force (overwrite mode)
@@ -145,6 +140,15 @@ router.put('/:id', (req, res) => {
 
   const newStart = start_hour ?? task.start_hour;
   const newEnd = end_hour ?? task.end_hour;
+
+  // Check same-name + overlapping on edit (name+time both checked)
+  if (description !== undefined) {
+    const dup = db.prepare('SELECT id FROM tasks WHERE plan_id = ? AND date = ? AND description = ? AND start_hour < ? AND end_hour > ? AND id != ?')
+      .get(task.plan_id, task.date, description, newEnd, newStart, task.id);
+    if (dup && !force) {
+      return res.json({ conflict: true, overlapping: [{ start_hour: newStart, end_hour: newEnd, description: description + ' (同名且时段重叠)' }] });
+    }
+  }
 
   // Report overlaps before updating (unless force)
   if ((start_hour !== undefined || end_hour !== undefined) && !force) {

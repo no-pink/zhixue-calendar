@@ -88,12 +88,12 @@ export default function PlanList({ onSelect, selectedPlanId, refreshTrigger, onP
               className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:border-blue-400" required />
           </div>
           <div className="flex gap-2">
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <label className="block text-xs text-gray-500 mb-0.5">开始日期</label>
               <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
                 className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:border-blue-400" required />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <label className="block text-xs text-gray-500 mb-0.5">结束日期</label>
               <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
                 className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:border-blue-400" required />

@@ -335,11 +335,7 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
       {conflictInfo && pendingAction && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={() => { setConflictInfo(null); setPendingAction(null); }}>
           <div className="bg-white rounded-xl shadow-lg p-5 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
-            <h4 className="text-sm font-medium text-gray-800 mb-2">
-              {conflictInfo.some(o => o.description.includes('同名'))
-                ? '存在同名任务'
-                : '时段冲突'}
-            </h4>
+            <h4 className="text-sm font-medium text-gray-800 mb-2">任务冲突</h4>
             <p className="text-xs text-gray-500 mb-3">以下任务冲突：</p>
             <div className="text-xs text-gray-600 bg-gray-50 rounded p-2 mb-4 whitespace-pre-line font-mono">
               {conflictText}

@@ -85,9 +85,14 @@ router.post('/', (req, res) => {
     return res.json({ conflict: true, overlapping: overlaps });
   }
 
-  // Check for same-name task within the same plan+date
-  const sameName = db.prepare('SELECT id FROM tasks WHERE plan_id = ? AND date = ? AND description = ?')
-    .get(plan_id, date, description);
+  // Check for same-name task within the same plan+date (exclude same-id for edits)
+  const sameNameQuery = `SELECT id FROM tasks WHERE plan_id = ? AND date = ? AND description = ?`;
+  const sameNameParams = [plan_id, date, description];
+  if (req.body.exclude_task_id) {
+    sameNameQuery += ` AND id != ?`;
+    sameNameParams.push(req.body.exclude_task_id);
+  }
+  const sameName = db.prepare(sameNameQuery).get(...sameNameParams);
   if (sameName && !force && !req.body.skip_conflict_check) {
     return res.json({ conflict: true, overlapping: [{ start_hour: sh, end_hour: eh, description: description + ' (同名)' }] });
   }
@@ -127,6 +132,16 @@ router.put('/:id', (req, res) => {
     WHERE t.id = ? AND p.user_id = ?
   `).get(req.params.id, req.user.id);
   if (!task) return res.status(404).json({ error: '任务不存在' });
+
+  // Check same-name on edit
+  const newDesc = description ?? task.description;
+  if (description !== undefined) {
+    const dup = db.prepare('SELECT id FROM tasks WHERE plan_id = ? AND date = ? AND description = ? AND id != ?')
+      .get(task.plan_id, task.date, newDesc, task.id);
+    if (dup && !force) {
+      return res.json({ conflict: true, overlapping: [{ start_hour: task.start_hour, end_hour: task.end_hour, description: newDesc + ' (同名)' }] });
+    }
+  }
 
   const newStart = start_hour ?? task.start_hour;
   const newEnd = end_hour ?? task.end_hour;

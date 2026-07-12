@@ -178,10 +178,16 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
       <p className="text-xs text-gray-400 mb-3">{isMulti ? `${date} 等 ${selectedDates.length} 天` : date}</p>
 
       {/* Add task button */}
-      {!showForm && (
+      {!showForm && !isMulti && (
         <button onClick={() => { setShowForm(true); setNewStart(8); setNewEnd(10); setNewDesc(''); }}
           className="w-full py-2 mb-3 border border-dashed border-gray-200 rounded-lg text-xs text-gray-400 hover:text-blue-500 hover:border-blue-300 transition-colors">
-          {isMulti ? '+ 添加到所有选中日期' : '+ 添加任务'}
+          + 添加任务
+        </button>
+      )}
+      {!showForm && isMulti && (
+        <button onClick={() => { setShowForm(true); setNewStart(8); setNewEnd(10); setNewDesc(''); }}
+          className="w-full py-2 mb-3 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg transition-colors shadow-sm">
+          + 批量添加任务 ({selectedDates.length} 天)
         </button>
       )}
 
@@ -190,6 +196,9 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
         <div className="p-3 mb-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
           {isMulti && (
             <p className="text-[10px] text-blue-500">将添加到 {selectedDates.length} 天</p>
+          )}
+          {isMulti && (
+            <p className="text-[10px] text-orange-500">提示：与已有任务冲突时会弹出选项</p>
           )}
           <div className="flex gap-2 items-center">
             <div className="flex-1">
@@ -326,8 +335,12 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
       {conflictInfo && pendingAction && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={() => { setConflictInfo(null); setPendingAction(null); }}>
           <div className="bg-white rounded-xl shadow-lg p-5 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
-            <h4 className="text-sm font-medium text-gray-800 mb-2">时段冲突</h4>
-            <p className="text-xs text-gray-500 mb-3">以下任务时间有重叠：</p>
+            <h4 className="text-sm font-medium text-gray-800 mb-2">
+              {conflictInfo.some(o => o.description.includes('同名'))
+                ? '存在同名任务'
+                : '时段冲突'}
+            </h4>
+            <p className="text-xs text-gray-500 mb-3">以下任务冲突：</p>
             <div className="text-xs text-gray-600 bg-gray-50 rounded p-2 mb-4 whitespace-pre-line font-mono">
               {conflictText}
             </div>

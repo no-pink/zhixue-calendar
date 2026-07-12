@@ -124,7 +124,7 @@ export default function PlanList({ onSelect, selectedPlanId, refreshTrigger, onP
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-medium text-gray-800 truncate">{plan.name}</h3>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  {plan.start_date} ~ {plan.end_date}
+                  {plan.start_date.replace(/-/g, '/').slice(5)} ~ {plan.end_date.replace(/-/g, '/').slice(5)}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
                   进度 {plan.completed_tasks}/{plan.total_tasks}

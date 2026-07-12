@@ -55,9 +55,20 @@ router.get('/:planId/:date', (req, res) => {
   res.json(Object.values(taskMap));
 });
 
-// Create task with optional submissions
+// Check for time overlap conflicts
+function findOverlaps(db, planId, date, startHour, endHour, excludeTaskId) {
+  let query = `SELECT id, start_hour, end_hour, description FROM tasks WHERE plan_id = ? AND date = ? AND start_hour < ? AND end_hour > ?`;
+  const params = [planId, date, endHour, startHour];
+  if (excludeTaskId) {
+    query += ` AND id != ?`;
+    params.push(excludeTaskId);
+  }
+  return db.prepare(query).all(...params);
+}
+
+// Create task with optional submissions and conflict check
 router.post('/', (req, res) => {
-  const { plan_id, date, start_hour, end_hour, hour, description, submissions } = req.body;
+  const { plan_id, date, start_hour, end_hour, hour, description, submissions, force } = req.body;
   const sh = start_hour ?? hour;
   const eh = end_hour ?? (hour !== undefined ? hour + 1 : undefined);
   if (!plan_id || !date || sh === undefined || eh === undefined || !description) {
@@ -67,6 +78,18 @@ router.post('/', (req, res) => {
   const db = getDB();
   const plan = db.prepare('SELECT * FROM plans WHERE id = ? AND user_id = ?').get(plan_id, req.user.id);
   if (!plan) return res.status(404).json({ error: '计划不存在' });
+
+  // Check overlaps
+  const overlaps = findOverlaps(db, plan_id, date, sh, eh);
+  if (overlaps.length > 0 && !force) {
+    return res.json({ conflict: true, overlapping: overlaps });
+  }
+
+  // Remove overlapping tasks if force
+  if (force && overlaps.length > 0) {
+    const ids = overlaps.map(o => o.id);
+    db.prepare(`DELETE FROM tasks WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
+  }
 
   const result = db.prepare('INSERT INTO tasks (plan_id, date, start_hour, end_hour, description) VALUES (?, ?, ?, ?, ?)')
     .run(plan_id, date, sh, eh, description);
@@ -87,9 +110,9 @@ router.post('/upload', upload.single('file'), (req, res) => {
   res.json({ file_path: req.file.filename, original_name: req.file.originalname });
 });
 
-// Update task
+// Update task with conflict check
 router.put('/:id', (req, res) => {
-  const { description, completed, start_hour, end_hour, submissions } = req.body;
+  const { description, completed, start_hour, end_hour, submissions, force } = req.body;
   const db = getDB();
 
   const task = db.prepare(`
@@ -97,6 +120,22 @@ router.put('/:id', (req, res) => {
     WHERE t.id = ? AND p.user_id = ?
   `).get(req.params.id, req.user.id);
   if (!task) return res.status(404).json({ error: '任务不存在' });
+
+  const newStart = start_hour ?? task.start_hour;
+  const newEnd = end_hour ?? task.end_hour;
+
+  // Check overlaps when changing time
+  if (start_hour !== undefined || end_hour !== undefined) {
+    const overlaps = findOverlaps(db, task.plan_id, task.date, newStart, newEnd, task.id);
+    if (overlaps.length > 0 && !force) {
+      return res.json({ conflict: true, overlapping: overlaps });
+    }
+    // Remove overlapping tasks if force
+    if (force && overlaps.length > 0) {
+      const ids = overlaps.map(o => o.id);
+      db.prepare(`DELETE FROM tasks WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
+    }
+  }
 
   if (description !== undefined) {
     db.prepare('UPDATE tasks SET description = ? WHERE id = ?').run(description, req.params.id);
@@ -159,22 +198,22 @@ router.post('/batch', (req, res) => {
   if (!plan) return res.status(404).json({ error: '计划不存在' });
 
   const insert = db.prepare('INSERT OR IGNORE INTO tasks (plan_id, date, start_hour, end_hour, description) VALUES (?, ?, ?, ?, ?)');
-  const findExisting = db.prepare('SELECT id FROM tasks WHERE plan_id = ? AND date = ? AND start_hour = ? AND end_hour = ?');
-  const update = db.prepare('UPDATE tasks SET description = ? WHERE plan_id = ? AND date = ? AND start_hour = ? AND end_hour = ?');
   const count = { created: 0, skipped: 0, overwritten: 0 };
 
   const transaction = db.transaction(() => {
     dates.forEach(date => {
       slots.forEach(slot => {
         const [startH, endH] = slot.split('-').map(s => parseInt(s.trim()));
-        const existing = findExisting.get(plan_id, date, startH, endH);
+        const overlaps = findOverlaps(db, plan_id, date, startH, endH);
 
-        if (existing) {
+        if (overlaps.length > 0) {
           if (conflict_mode === 'overwrite') {
-            update.run(template, plan_id, date, startH, endH);
-            count.overwritten++;
+            const ids = overlaps.map(o => o.id);
+            db.prepare(`DELETE FROM tasks WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
+            insert.run(plan_id, date, startH, endH, template);
+            count.overwritten += overlaps.length;
           } else {
-            count.skipped++;
+            count.skipped += overlaps.length;
           }
         } else {
           insert.run(plan_id, date, startH, endH, template);
@@ -186,6 +225,51 @@ router.post('/batch', (req, res) => {
 
   transaction();
   res.json(count);
+});
+
+// Batch create on multiple dates (used by TaskPanel multi-date mode)
+router.post('/batch-simple', (req, res) => {
+  const { plan_id, dates, start_hour, end_hour, description, force } = req.body;
+  if (!plan_id || !dates || !dates.length || start_hour === undefined || end_hour === undefined || !description) {
+    return res.status(400).json({ error: '请填写完整信息' });
+  }
+
+  const db = getDB();
+  const plan = db.prepare('SELECT * FROM plans WHERE id = ? AND user_id = ?').get(plan_id, req.user.id);
+  if (!plan) return res.status(404).json({ error: '计划不存在' });
+
+  // Pre-check all dates for overlaps
+  if (!force) {
+    const allOverlaps = [];
+    dates.forEach(date => {
+      const overlaps = findOverlaps(db, plan_id, date, start_hour, end_hour);
+      overlaps.forEach(o => allOverlaps.push({ ...o, date }));
+    });
+    if (allOverlaps.length > 0) {
+      return res.json({ conflict: true, overlapping: allOverlaps });
+    }
+  }
+
+  // Insert on all dates
+  const insert = db.prepare('INSERT INTO tasks (plan_id, date, start_hour, end_hour, description) VALUES (?, ?, ?, ?, ?)');
+  let created = 0;
+
+  const transaction = db.transaction(() => {
+    dates.forEach(date => {
+      if (force) {
+        const overlaps = findOverlaps(db, plan_id, date, start_hour, end_hour);
+        if (overlaps.length > 0) {
+          const ids = overlaps.map(o => o.id);
+          db.prepare(`DELETE FROM tasks WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
+        }
+      }
+      insert.run(plan_id, date, start_hour, end_hour, description);
+      created++;
+    });
+  });
+
+  transaction();
+  res.json({ created, dates: dates.length });
 });
 
 module.exports = router;

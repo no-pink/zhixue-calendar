@@ -3,7 +3,7 @@ import { tasks as tasksApi } from '../api';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
-export default function TaskPanel({ planId, date, refreshTrigger, onRefresh }) {
+export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, selectedDates }) {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingTask, setEditingTask] = useState(null);
@@ -15,6 +15,9 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh }) {
   const [newEnd, setNewEnd] = useState(10);
   const [newDesc, setNewDesc] = useState('');
   const [showSubmissions, setShowSubmissions] = useState(null);
+
+  const isMulti = selectedDates && selectedDates.length > 1;
+  const activeDates = isMulti ? selectedDates : [date];
 
   useEffect(() => {
     const load = async () => {
@@ -35,10 +38,42 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh }) {
     } catch (e) { console.error(e); }
   };
 
-  const handleAdd = async () => {
+  // Check if response is a conflict
+  const handleConflict = async (res, retryFn) => {
+    if (res && res.conflict) {
+      const names = res.overlapping.map(o => `${o.start_hour}:00-${o.end_hour}:00 ${o.description}`).join('\n');
+      if (window.confirm(`以下任务与时段冲突：\n${names}\n\n是否覆盖？`)) {
+        await retryFn(true);
+      }
+    }
+  };
+
+  const handleAdd = async (force = false) => {
     if (!newDesc.trim()) return;
     try {
-      await tasksApi.create({ plan_id: planId, date, start_hour: newStart, end_hour: newEnd, description: newDesc.trim() });
+      if (isMulti) {
+        const res = await tasksApi.batchSimple({
+          plan_id: planId,
+          dates: activeDates,
+          start_hour: newStart,
+          end_hour: newEnd,
+          description: newDesc.trim(),
+          force,
+        });
+        if (res.conflict) {
+          handleConflict(res, (f) => handleAdd(f));
+          return;
+        }
+      } else {
+        const res = await tasksApi.create({
+          plan_id: planId, date, start_hour: newStart, end_hour: newEnd,
+          description: newDesc.trim(), force,
+        });
+        if (res.conflict) {
+          handleConflict(res, (f) => handleAdd(f));
+          return;
+        }
+      }
       setNewDesc('');
       setShowForm(false);
       await fetchTasks();
@@ -54,10 +89,19 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh }) {
     } catch (e) { alert(e.message); }
   };
 
-  const handleUpdate = async () => {
+  const handleUpdate = async (force = false) => {
     if (!editDesc.trim()) return;
     try {
-      await tasksApi.update(editingTask.id, { description: editDesc.trim(), start_hour: editStart, end_hour: editEnd });
+      const res = await tasksApi.update(editingTask.id, {
+        description: editDesc.trim(),
+        start_hour: editStart,
+        end_hour: editEnd,
+        force,
+      });
+      if (res.conflict) {
+        handleConflict(res, (f) => handleUpdate(f));
+        return;
+      }
       setEditingTask(null);
       await fetchTasks();
     } catch (e) { alert(e.message); }
@@ -99,20 +143,30 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh }) {
 
   return (
     <div className="p-4">
-      <h3 className="text-sm font-medium text-gray-700 mb-1">任务详情</h3>
-      <p className="text-xs text-gray-400 mb-3">{date}</p>
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="text-sm font-medium text-gray-700">任务详情</h3>
+        {isMulti && (
+          <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">
+            已选 {selectedDates.length} 天
+          </span>
+        )}
+      </div>
+      <p className="text-xs text-gray-400 mb-3">{isMulti ? `${date} 等 ${selectedDates.length} 天` : date}</p>
 
       {/* Add task button */}
       {!showForm && (
         <button onClick={() => { setShowForm(true); setNewStart(8); setNewEnd(10); setNewDesc(''); }}
           className="w-full py-2 mb-3 border border-dashed border-gray-200 rounded-lg text-xs text-gray-400 hover:text-blue-500 hover:border-blue-300 transition-colors">
-          + 添加任务
+          {isMulti ? '+ 添加到所有选中日期' : '+ 添加任务'}
         </button>
       )}
 
       {/* Add task form */}
       {showForm && (
         <div className="p-3 mb-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+          {isMulti && (
+            <p className="text-[10px] text-blue-500">将添加到 {selectedDates.length} 天</p>
+          )}
           <div className="flex gap-2 items-center">
             <div className="flex-1">
               <label className="block text-[10px] text-gray-500 mb-0.5">开始</label>
@@ -135,7 +189,7 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh }) {
             placeholder="任务描述" autoFocus
             onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') setShowForm(false); }} />
           <div className="flex gap-1">
-            <button onClick={handleAdd} className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">添加</button>
+            <button onClick={() => handleAdd()} className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">添加</button>
             <button onClick={() => setShowForm(false)} className="px-3 py-1 text-xs text-gray-400 hover:text-gray-600">取消</button>
           </div>
         </div>
@@ -175,13 +229,12 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh }) {
                     className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:border-blue-400" autoFocus
                     onKeyDown={e => { if (e.key === 'Enter') handleUpdate(); if (e.key === 'Escape') setEditingTask(null); }} />
                   <div className="flex gap-1">
-                    <button onClick={handleUpdate} className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">确定</button>
+                    <button onClick={() => handleUpdate()} className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">确定</button>
                     <button onClick={() => setEditingTask(null)} className="px-3 py-1 text-xs text-gray-400 hover:text-gray-600">取消</button>
                   </div>
                 </div>
               ) : (
                 <>
-                  {/* Header row */}
                   <div className="flex items-start justify-between gap-1">
                     <div className="flex items-start gap-2 flex-1 min-w-0">
                       <input type="checkbox" checked={!!task.completed} onChange={() => handleToggle(task.id)}

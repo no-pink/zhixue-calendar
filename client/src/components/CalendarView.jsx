@@ -9,6 +9,7 @@ export default function CalendarView({
   const [year, setYear] = useState(0);
   const [month, setMonth] = useState(0);
   const [tasksByDate, setTasksByDate] = useState({});
+  const [multiMode, setMultiMode] = useState(false);
 
   useEffect(() => {
     if (plan) {
@@ -60,26 +61,37 @@ export default function CalendarView({
 
   const formatDate = (y, m, d) => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
+  const toggleMultiSelect = (deselectedDate) => {
+    setSelectedDates(prev => {
+      const next = prev.includes(deselectedDate)
+        ? prev.filter(d => d !== deselectedDate)
+        : [...prev, deselectedDate];
+      if (next.length === 0) onSelectDate(null);
+      else if (prev.includes(deselectedDate) && prev.length > 1) onSelectDate(next[0]);
+      return next;
+    });
+  };
+
   const selectDate = (dateStr, e) => {
-    if (e.ctrlKey || e.metaKey || e.shiftKey) {
-      // Multi-select: toggle individual date
-      setSelectedDates(prev => {
-        const next = prev.includes(dateStr)
-          ? prev.filter(d => d !== dateStr)
-          : [...prev, dateStr];
-        // Zero left → clear panel; removed active date → show first remaining
-        if (next.length === 0) {
-          onSelectDate(null);
-        } else if (prev.includes(dateStr) && prev.length > 1) {
-          onSelectDate(next[0]);
-        }
-        return next;
-      });
+    if (multiMode) {
+      toggleMultiSelect(dateStr);
+    } else if (e.ctrlKey || e.metaKey || e.shiftKey) {
+      toggleMultiSelect(dateStr);
     } else {
-      // Single select: replace selection
-      onSelectDate(dateStr);
-      setSelectedDates([dateStr]);
+      if (selectedDate === dateStr && selectedDates.length <= 1) {
+        onSelectDate(null);
+        setSelectedDates([]);
+      } else {
+        onSelectDate(dateStr);
+        setSelectedDates([dateStr]);
+      }
     }
+  };
+
+  const exitMultiMode = () => {
+    setMultiMode(false);
+    setSelectedDates([]);
+    onSelectDate(null);
   };
 
   return (
@@ -92,19 +104,27 @@ export default function CalendarView({
         </div>
       </div>
 
-      {/* Month navigation */}
+      {/* Month navigation + multi-select toggle */}
       <div className="flex items-center justify-between mb-3">
         <button onClick={prevMonth} className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded">&lt;</button>
         <span className="text-sm font-medium text-gray-700">{year}年{month}月</span>
-        <button onClick={nextMonth} className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded">&gt;</button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { if (multiMode) exitMultiMode(); else setMultiMode(true); }}
+            className={`px-3 py-1 text-xs rounded-lg transition-colors ${multiMode ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+          >
+            多选{multiMode ? '中' : ''}
+          </button>
+          <button onClick={nextMonth} className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded">&gt;</button>
+        </div>
       </div>
 
-      {/* Multi-select hint */}
-      {selectedDates.length === 0 && (
-        <p className="text-xs text-gray-400 mb-2">点击日期查看任务，按住 Ctrl 多选</p>
+      {/* Status hint */}
+      {!multiMode && selectedDates.length <= 1 && (
+        <p className="text-xs text-gray-400 mb-2">点击日期查看任务，点击"多选"批量操作</p>
       )}
-      {selectedDates.length === 1 && (
-        <p className="text-xs text-gray-400 mb-2">按住 Ctrl 多选日期进行批量操作</p>
+      {multiMode && (
+        <p className="text-xs text-blue-500 mb-2">多选模式 — 点击日期切换选中，操作完成后自动退出</p>
       )}
 
       {/* Batch fill bar — appears when 2+ dates selected */}
@@ -112,7 +132,7 @@ export default function CalendarView({
         <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
           <span className="text-xs text-blue-700">已选 {selectedDates.length} 天</span>
           <div className="flex gap-2">
-            <button onClick={() => { setSelectedDates([]); onSelectDate(null); }}
+            <button onClick={() => exitMultiMode()}
               className="px-3 py-1 text-xs text-gray-500 hover:text-gray-700 bg-white rounded border border-gray-200 transition-colors">
               取消选择
             </button>
@@ -133,12 +153,10 @@ export default function CalendarView({
 
       {/* Calendar grid */}
       <div className="grid grid-cols-7 gap-1">
-        {/* Empty cells */}
         {Array.from({ length: startDayOfWeek }).map((_, i) => (
           <div key={`empty-${i}`} className="h-20" />
         ))}
 
-        {/* Day cells */}
         {Array.from({ length: daysInMonth }).map((_, i) => {
           const day = i + 1;
           const dateStr = formatDate(year, month, day);
@@ -191,9 +209,7 @@ export default function CalendarView({
               {inRange && !taskInfo && (
                 <div className="mt-2">
                   <div className="flex gap-0.5">
-                    {Array.from({ length: 1 }).map((_, j) => (
-                      <div key={j} className="w-1.5 h-1.5 rounded-full bg-gray-100" />
-                    ))}
+                    <div className="w-1.5 h-1.5 rounded-full bg-gray-100" />
                   </div>
                 </div>
               )}

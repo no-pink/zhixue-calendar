@@ -79,13 +79,20 @@ router.post('/', (req, res) => {
   const plan = db.prepare('SELECT * FROM plans WHERE id = ? AND user_id = ?').get(plan_id, req.user.id);
   if (!plan) return res.status(404).json({ error: '计划不存在' });
 
-  // Report overlaps before creating (unless force)
+  // Report overlaps before creating (unless force or skip_conflict_check)
   const overlaps = findOverlaps(db, plan_id, date, sh, eh);
-  if (overlaps.length > 0 && !force) {
+  if (overlaps.length > 0 && !force && !req.body.skip_conflict_check) {
     return res.json({ conflict: true, overlapping: overlaps });
   }
 
-  // Remove overlapping tasks if force
+  // Check for same-name task within the same plan+date
+  const sameName = db.prepare('SELECT id FROM tasks WHERE plan_id = ? AND date = ? AND description = ?')
+    .get(plan_id, date, description);
+  if (sameName && !force && !req.body.skip_conflict_check) {
+    return res.json({ conflict: true, overlapping: [{ start_hour: sh, end_hour: eh, description: description + ' (同名)' }] });
+  }
+
+  // Remove overlapping tasks if force (overwrite mode)
   if (force && overlaps.length > 0) {
     const ids = overlaps.map(o => o.id);
     db.prepare(`DELETE FROM tasks WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);

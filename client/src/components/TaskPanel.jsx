@@ -51,14 +51,12 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
     try {
       if (type === 'add') {
         if (isMulti) {
-          const res = await tasksApi.batchSimple({ ...params, conflict_mode: mode });
-          if (res.conflict && mode === 'skip') {
-            // If there are still conflicts in skip mode, it means some dates had no conflict
-            // and batch-simple already handled it. Just refresh.
-          }
+          await tasksApi.batchSimple({ ...params, conflict_mode: mode });
         } else {
           if (mode === 'overwrite') {
             await tasksApi.create({ ...params, force: true });
+          } else if (mode === 'keep_both') {
+            await tasksApi.create({ ...params, skip_conflict_check: true });
           }
           // skip = don't create
         }

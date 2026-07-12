@@ -158,6 +158,9 @@ export default function CalendarView({
         </div>
       )}
 
+      {/* Calendar wrapper with horizontal scroll */}
+      <div className="overflow-x-auto -mx-4 sm:-mx-6 px-4 sm:px-6">
+        <div className="min-w-[490px]">
       {/* Weekday header */}
       <div className="grid grid-cols-7 gap-1 mb-1">
         {WEEKDAYS.map(w => (
@@ -166,8 +169,7 @@ export default function CalendarView({
       </div>
 
       {/* Calendar grid */}
-      <div className="overflow-x-auto">
-      <div className="grid grid-cols-7 gap-1 auto-rows-fr min-w-[480px]">
+      <div className="grid grid-cols-7 gap-1 auto-rows-fr">
         {Array.from({ length: startDayOfWeek }).map((_, i) => (
           <div key={`empty-${i}`} />
         ))}
@@ -232,6 +234,7 @@ export default function CalendarView({
           );
         })}
       </div>
+        </div>{/* end min-w */}
       </div>{/* end overflow-x-auto */}
     </div>
   );

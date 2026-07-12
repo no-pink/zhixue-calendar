@@ -25,6 +25,9 @@ router.post('/', (req, res) => {
   if (new Date(end_date) < new Date(start_date)) return res.status(400).json({ error: '结束日期不能早于开始日期' });
 
   const db = getDB();
+  const existing = db.prepare('SELECT id FROM plans WHERE user_id = ? AND name = ?').get(req.user.id, name);
+  if (existing) return res.status(400).json({ error: '已有同名计划' });
+
   const result = db.prepare('INSERT INTO plans (user_id, name, start_date, end_date) VALUES (?, ?, ?, ?)')
     .run(req.user.id, name, start_date, end_date);
   const plan = db.prepare('SELECT * FROM plans WHERE id = ?').get(result.lastInsertRowid);
@@ -37,6 +40,11 @@ router.put('/:id', (req, res) => {
   const db = getDB();
   const plan = db.prepare('SELECT * FROM plans WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
   if (!plan) return res.status(404).json({ error: '计划不存在' });
+
+  if (name && name !== plan.name) {
+    const dup = db.prepare('SELECT id FROM plans WHERE user_id = ? AND name = ? AND id != ?').get(req.user.id, name, req.params.id);
+    if (dup) return res.status(400).json({ error: '已有同名计划' });
+  }
 
   db.prepare('UPDATE plans SET name = ?, start_date = ?, end_date = ? WHERE id = ?')
     .run(name || plan.name, start_date || plan.start_date, end_date || plan.end_date, req.params.id);

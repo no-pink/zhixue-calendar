@@ -309,21 +309,28 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
       {/* Conflict dialog */}
       {conflictInfo && pendingAction && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={() => { setConflictInfo(null); setConflictType(null); setPendingAction(null); }}>
-          <div className="bg-white rounded-xl shadow-lg p-5 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
-            <h4 className="text-sm font-medium text-gray-800 mb-2">
-              {conflictType === 'same_name' ? '同名任务' : '时段冲突'}
-            </h4>
-            <p className="text-xs text-gray-500 mb-3">
+          <div className={`bg-white rounded-xl shadow-lg p-5 w-full max-w-sm mx-4 border-t-4 ${conflictType === 'same_name' ? 'border-yellow-400' : 'border-red-400'}`} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-2">
+              {conflictType === 'same_name' ? (
+                <svg className="w-5 h-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              ) : (
+                <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              )}
+              <h4 className={`text-sm font-medium ${conflictType === 'same_name' ? 'text-yellow-700' : 'text-red-700'}`}>
+                {conflictType === 'same_name' ? '同名任务' : '时段冲突'}
+              </h4>
+            </div>
+            <p className="text-xs mb-3">
               {conflictType === 'same_name'
-                ? '已存在同名任务，请选择处理方式：'
-                : '以下任务时间有重叠：'}
+                ? <span className="text-yellow-600">已存在同名任务，请选择处理方式：</span>
+                : <span className="text-red-600">以下任务时间有重叠：</span>}
             </p>
             {conflictType !== 'same_name' && (
               <div className="text-xs text-gray-600 bg-gray-50 rounded p-2 mb-4 whitespace-pre-line font-mono">
                 {conflictText}
               </div>
             )}
-            <div className="flex gap-2">
+            <div className="flex gap-2 mt-4">
               <button onClick={() => resolveConflict('keep_both')}
                 className="flex-1 py-2 bg-green-500 hover:bg-green-600 text-white text-xs rounded-lg transition-colors">
                 {conflictType === 'same_name' ? '仍添加 — 保留新旧' : '全都要 — 新旧并行'}

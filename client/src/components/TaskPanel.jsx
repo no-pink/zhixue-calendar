@@ -150,7 +150,7 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh }) {
           const isEditing = editingTask?.id === task.id;
           return (
             <div key={task.id}
-              className={`p-3 rounded-lg border ${task.completed ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100 hover:border-gray-200'}`}>
+              className={`group p-3 rounded-lg border ${task.completed ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100 hover:border-gray-200'}`}>
 
               {isEditing ? (
                 <div className="space-y-2">

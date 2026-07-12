@@ -60,17 +60,25 @@ export default function CalendarView({
 
   const formatDate = (y, m, d) => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
-  const toggleDate = (dateStr, e) => {
+  const selectDate = (dateStr, e) => {
     if (e.ctrlKey || e.metaKey || e.shiftKey) {
+      // Multi-select: toggle individual date
       setSelectedDates(prev => {
-        if (prev.includes(dateStr)) return prev.filter(d => d !== dateStr);
-        return [...prev, dateStr];
+        const next = prev.includes(dateStr)
+          ? prev.filter(d => d !== dateStr)
+          : [...prev, dateStr];
+        // Zero left → clear panel; removed active date → show first remaining
+        if (next.length === 0) {
+          onSelectDate(null);
+        } else if (prev.includes(dateStr) && prev.length > 1) {
+          onSelectDate(next[0]);
+        }
+        return next;
       });
     } else {
+      // Single select: replace selection
       onSelectDate(dateStr);
-      if (!selectedDates.includes(dateStr)) {
-        setSelectedDates([dateStr]);
-      }
+      setSelectedDates([dateStr]);
     }
   };
 
@@ -82,13 +90,6 @@ export default function CalendarView({
           <h2 className="text-lg font-medium text-gray-800">{plan?.name}</h2>
           <p className="text-xs text-gray-400">{plan?.start_date} ~ {plan?.end_date}</p>
         </div>
-        {selectedDates.length > 1 && (
-          <button onClick={onBatch}
-            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition-colors"
-          >
-            批量填充 ({selectedDates.length}天)
-          </button>
-        )}
       </div>
 
       {/* Month navigation */}
@@ -97,6 +98,31 @@ export default function CalendarView({
         <span className="text-sm font-medium text-gray-700">{year}年{month}月</span>
         <button onClick={nextMonth} className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded">&gt;</button>
       </div>
+
+      {/* Multi-select hint */}
+      {selectedDates.length === 0 && (
+        <p className="text-xs text-gray-400 mb-2">点击日期查看任务，按住 Ctrl 多选</p>
+      )}
+      {selectedDates.length === 1 && (
+        <p className="text-xs text-gray-400 mb-2">按住 Ctrl 多选日期进行批量操作</p>
+      )}
+
+      {/* Batch fill bar — appears when 2+ dates selected */}
+      {selectedDates.length > 1 && (
+        <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+          <span className="text-xs text-blue-700">已选 {selectedDates.length} 天</span>
+          <div className="flex gap-2">
+            <button onClick={() => { setSelectedDates([]); onSelectDate(null); }}
+              className="px-3 py-1 text-xs text-gray-500 hover:text-gray-700 bg-white rounded border border-gray-200 transition-colors">
+              取消选择
+            </button>
+            <button onClick={onBatch}
+              className="px-4 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded-lg transition-colors">
+              批量填充
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Weekday header */}
       <div className="grid grid-cols-7 gap-1 mb-1">
@@ -118,17 +144,20 @@ export default function CalendarView({
           const dateStr = formatDate(year, month, day);
           const inRange = isInPlanRange(year, month, day);
           const taskInfo = tasksByDate[dateStr];
-          const isSelected = selectedDate === dateStr || selectedDates.includes(dateStr);
+          const isMultiSelected = selectedDates.includes(dateStr);
+          const isSingleSelected = selectedDate === dateStr && selectedDates.length <= 1;
+          const isSelected = isSingleSelected || isMultiSelected;
           const isToday = new Date().toISOString().slice(0, 10) === dateStr;
 
           return (
             <div
               key={day}
-              onClick={(e) => inRange && toggleDate(dateStr, e)}
+              onClick={(e) => inRange && selectDate(dateStr, e)}
               className={`h-20 p-1.5 rounded-lg border text-sm relative transition-colors cursor-pointer
                 ${!inRange ? 'bg-gray-50 text-gray-300 cursor-default border-gray-50' : ''}
-                ${inRange && isSelected ? 'border-blue-400 bg-blue-50' : 'border-gray-100'}
-                ${inRange && !isSelected ? 'hover:border-gray-200 hover:bg-gray-50' : ''}
+                ${inRange && isMultiSelected ? 'border-blue-400 bg-blue-50' : ''}
+                ${inRange && isSingleSelected ? 'border-blue-400 bg-blue-50' : ''}
+                ${inRange && !isSelected ? 'border-gray-100 hover:border-gray-200 hover:bg-gray-50' : ''}
                 ${isToday && !isSelected ? 'border-blue-200' : ''}
               `}
             >
@@ -136,7 +165,7 @@ export default function CalendarView({
                 <span className={`text-xs font-medium ${isToday ? 'text-blue-600' : 'text-gray-600'}`}>
                   {day}
                 </span>
-                {selectedDates.includes(dateStr) && (
+                {isMultiSelected && (
                   <span className="w-2 h-2 rounded-full bg-blue-500" />
                 )}
               </div>

@@ -64,10 +64,14 @@ export default function Dashboard() {
                   plan={selectedPlan}
                   onSelectDate={date => {
                     setSelectedDate(date);
-                    setSelectedDates(prev => {
-                      if (prev.includes(date)) return prev;
-                      return [date];
-                    });
+                    if (date) {
+                      setSelectedDates(prev => {
+                        if (prev.includes(date)) return prev;
+                        return [date];
+                      });
+                    } else {
+                      setSelectedDates([]);
+                    }
                   }}
                   selectedDate={selectedDate}
                   refreshTrigger={refreshKey}

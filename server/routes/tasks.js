@@ -93,9 +93,16 @@ router.post('/', (req, res) => {
   }
 
   // Remove overlapping tasks if force (overwrite mode)
-  if (force && overlaps.length > 0) {
-    const ids = overlaps.map(o => o.id);
-    db.prepare(`DELETE FROM tasks WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
+  if (force) {
+    if (overlaps.length > 0) {
+      const ids = overlaps.map(o => o.id);
+      db.prepare(`DELETE FROM tasks WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
+    }
+    // Also remove same-name task
+    const sn = db.prepare('SELECT id FROM tasks WHERE plan_id = ? AND date = ? AND description = ?').get(plan_id, date, description);
+    if (sn) {
+      db.prepare('DELETE FROM tasks WHERE id = ?').run(sn.id);
+    }
   }
 
   const result = db.prepare('INSERT INTO tasks (plan_id, date, start_hour, end_hour, description) VALUES (?, ?, ?, ?, ?)')
@@ -217,14 +224,40 @@ router.post('/batch', (req, res) => {
   if (!plan) return res.status(404).json({ error: '计划不存在' });
 
   const insert = db.prepare('INSERT INTO tasks (plan_id, date, start_hour, end_hour, description) VALUES (?, ?, ?, ?, ?)');
-  const count = { created: 0, skipped: 0, overwritten: 0 };
+  const count = { created: 0, skipped: 0, overwritten: 0, same_name_skipped: 0 };
 
   const transaction = db.transaction(() => {
     dates.forEach(date => {
       slots.forEach(slot => {
         const [startH, endH] = slot.split('-').map(s => parseInt(s.trim()));
-        const overlaps = findOverlaps(db, plan_id, date, startH, endH);
 
+        // Check same name first
+        const sameName = db.prepare('SELECT id FROM tasks WHERE plan_id = ? AND date = ? AND description = ?').get(plan_id, date, template);
+        if (sameName) {
+          if (conflict_mode === 'overwrite') {
+            db.prepare('DELETE FROM tasks WHERE id = ?').run(sameName.id);
+            insert.run(plan_id, date, startH, endH, template);
+            count.overwritten++;
+            count.created++;
+          } else if (conflict_mode === 'skip') {
+            count.same_name_skipped++;
+          } else {
+            // keep_both — allow duplicate names, just skip the same-name check
+            // but still need overlap check
+            const overlaps = findOverlaps(db, plan_id, date, startH, endH);
+            if (overlaps.length > 0) {
+              // overlap but keep_both → keep old + add new
+              insert.run(plan_id, date, startH, endH, template);
+              count.created++;
+            } else {
+              insert.run(plan_id, date, startH, endH, template);
+              count.created++;
+            }
+          }
+          return; // processed this slot
+        }
+
+        const overlaps = findOverlaps(db, plan_id, date, startH, endH);
         if (overlaps.length > 0) {
         if (conflict_mode === 'overwrite') {
           const ids = overlaps.map(o => o.id);

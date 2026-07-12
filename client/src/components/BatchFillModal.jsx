@@ -4,7 +4,7 @@ import { tasks as tasksApi } from '../api';
 export default function BatchFillModal({ planId, dates, onClose, onSuccess }) {
   const [slots, setSlots] = useState([{ start: '08', end: '09' }]);
   const [template, setTemplate] = useState('');
-  const [conflictMode, setConflictMode] = useState('skip');
+  const [conflictMode, setConflictMode] = useState('keep_both');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
 
@@ -70,14 +70,27 @@ export default function BatchFillModal({ planId, dates, onClose, onSuccess }) {
             {/* Conflict mode */}
             <div>
               <label className="block text-xs text-gray-600 mb-1">已有任务处理方式</label>
-              <div className="flex gap-3">
-                <label className="flex items-center gap-1 text-sm text-gray-600 cursor-pointer">
-                  <input type="radio" name="conflict" checked={conflictMode === 'skip'} onChange={() => setConflictMode('skip')} />
-                  跳过
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer p-2 rounded hover:bg-gray-50">
+                  <input type="radio" name="conflict" checked={conflictMode === 'keep_both'} onChange={() => setConflictMode('keep_both')} />
+                  <div>
+                    <div className="font-medium text-gray-700">全都要</div>
+                    <div className="text-[10px] text-gray-400">保留原有任务，同时添加新的（新旧并行）</div>
+                  </div>
                 </label>
-                <label className="flex items-center gap-1 text-sm text-gray-600 cursor-pointer">
+                <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer p-2 rounded hover:bg-gray-50">
+                  <input type="radio" name="conflict" checked={conflictMode === 'skip'} onChange={() => setConflictMode('skip')} />
+                  <div>
+                    <div className="font-medium text-gray-700">跳过</div>
+                    <div className="text-[10px] text-gray-400">有冲突的时段不添加新任务</div>
+                  </div>
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer p-2 rounded hover:bg-gray-50">
                   <input type="radio" name="conflict" checked={conflictMode === 'overwrite'} onChange={() => setConflictMode('overwrite')} />
-                  覆盖
+                  <div>
+                    <div className="font-medium text-gray-700">替换</div>
+                    <div className="text-[10px] text-gray-400">用新任务替换冲突的原有任务</div>
+                  </div>
                 </label>
               </div>
             </div>
@@ -97,8 +110,8 @@ export default function BatchFillModal({ planId, dates, onClose, onSuccess }) {
             </div>
             <div className="text-xs text-gray-600 space-y-1">
               <p>新增任务：{result.created} 个</p>
-              <p>跳过（已有）：{result.skipped} 个</p>
-              <p>覆盖（已有）：{result.overwritten} 个</p>
+              {result.skipped > 0 && <p>跳过（冲突）：{result.skipped} 个</p>}
+              {result.overwritten > 0 && <p>替换（旧任务）：{result.overwritten} 个</p>}
             </div>
             <button onClick={onSuccess}
               className="w-full py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition-colors">

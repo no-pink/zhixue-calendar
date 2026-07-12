@@ -229,7 +229,7 @@ router.post('/batch', (req, res) => {
 
 // Batch create on multiple dates (used by TaskPanel multi-date mode)
 router.post('/batch-simple', (req, res) => {
-  const { plan_id, dates, start_hour, end_hour, description, force } = req.body;
+  const { plan_id, dates, start_hour, end_hour, description, conflict_mode } = req.body;
   if (!plan_id || !dates || !dates.length || start_hour === undefined || end_hour === undefined || !description) {
     return res.status(400).json({ error: '请填写完整信息' });
   }
@@ -238,8 +238,8 @@ router.post('/batch-simple', (req, res) => {
   const plan = db.prepare('SELECT * FROM plans WHERE id = ? AND user_id = ?').get(plan_id, req.user.id);
   if (!plan) return res.status(404).json({ error: '计划不存在' });
 
-  // Pre-check all dates for overlaps
-  if (!force) {
+  // If no conflict_mode specified, check and return conflicts for user to decide
+  if (!conflict_mode) {
     const allOverlaps = [];
     dates.forEach(date => {
       const overlaps = findOverlaps(db, plan_id, date, start_hour, end_hour);
@@ -252,24 +252,30 @@ router.post('/batch-simple', (req, res) => {
 
   // Insert on all dates
   const insert = db.prepare('INSERT INTO tasks (plan_id, date, start_hour, end_hour, description) VALUES (?, ?, ?, ?, ?)');
-  let created = 0;
+  let created = 0, skipped = 0;
 
   const transaction = db.transaction(() => {
     dates.forEach(date => {
-      if (force) {
-        const overlaps = findOverlaps(db, plan_id, date, start_hour, end_hour);
-        if (overlaps.length > 0) {
+      const overlaps = findOverlaps(db, plan_id, date, start_hour, end_hour);
+      if (overlaps.length > 0) {
+        if (conflict_mode === 'overwrite') {
           const ids = overlaps.map(o => o.id);
           db.prepare(`DELETE FROM tasks WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
+          insert.run(plan_id, date, start_hour, end_hour, description);
+          created++;
+        } else {
+          // skip — don't create on this date
+          skipped++;
         }
+      } else {
+        insert.run(plan_id, date, start_hour, end_hour, description);
+        created++;
       }
-      insert.run(plan_id, date, start_hour, end_hour, description);
-      created++;
     });
   });
 
   transaction();
-  res.json({ created, dates: dates.length });
+  res.json({ created, skipped });
 });
 
 module.exports = router;

@@ -15,6 +15,8 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
   const [newEnd, setNewEnd] = useState(10);
   const [newDesc, setNewDesc] = useState('');
   const [showSubmissions, setShowSubmissions] = useState(null);
+  const [conflictInfo, setConflictInfo] = useState(null);  // { resolve: fn } awaiting user choice
+  const [pendingAction, setPendingAction] = useState(null); // { type, params }
 
   const isMulti = selectedDates && selectedDates.length > 1;
   const activeDates = isMulti ? selectedDates : [date];
@@ -38,39 +40,63 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
     } catch (e) { console.error(e); }
   };
 
-  // Check if response is a conflict
-  const handleConflict = async (res, retryFn) => {
-    if (res && res.conflict) {
-      const names = res.overlapping.map(o => `${o.start_hour}:00-${o.end_hour}:00 ${o.description}`).join('\n');
-      if (window.confirm(`以下任务与时段冲突：\n${names}\n\n是否覆盖？`)) {
-        await retryFn(true);
+  const resolveConflict = async (mode) => {
+    if (!pendingAction) return;
+    const { type, params } = pendingAction;
+    setConflictInfo(null);
+    setPendingAction(null);
+
+    if (mode === 'cancel') return;
+
+    try {
+      if (type === 'add') {
+        if (isMulti) {
+          const res = await tasksApi.batchSimple({ ...params, conflict_mode: mode });
+          if (res.conflict && mode === 'skip') {
+            // If there are still conflicts in skip mode, it means some dates had no conflict
+            // and batch-simple already handled it. Just refresh.
+          }
+        } else {
+          if (mode === 'overwrite') {
+            await tasksApi.create({ ...params, force: true });
+          }
+          // skip = don't create
+        }
+      } else if (type === 'edit') {
+        await tasksApi.update(editingTask.id, {
+          description: params.description,
+          start_hour: params.start_hour,
+          end_hour: params.end_hour,
+          force: mode === 'overwrite',
+        });
+        setEditingTask(null);
       }
-    }
+      await fetchTasks();
+      onRefresh();
+    } catch (e) { alert(e.message); }
+    setShowForm(false);
   };
 
-  const handleAdd = async (force = false) => {
+  const handleAdd = async () => {
     if (!newDesc.trim()) return;
+    const params = {
+      plan_id: planId, date, start_hour: newStart, end_hour: newEnd,
+      description: newDesc.trim(),
+    };
+
     try {
       if (isMulti) {
-        const res = await tasksApi.batchSimple({
-          plan_id: planId,
-          dates: activeDates,
-          start_hour: newStart,
-          end_hour: newEnd,
-          description: newDesc.trim(),
-          force,
-        });
+        const res = await tasksApi.batchSimple({ ...params, dates: activeDates });
         if (res.conflict) {
-          handleConflict(res, (f) => handleAdd(f));
+          setConflictInfo(res.overlapping);
+          setPendingAction({ type: 'add', params: { ...params, dates: activeDates } });
           return;
         }
       } else {
-        const res = await tasksApi.create({
-          plan_id: planId, date, start_hour: newStart, end_hour: newEnd,
-          description: newDesc.trim(), force,
-        });
+        const res = await tasksApi.create(params);
         if (res.conflict) {
-          handleConflict(res, (f) => handleAdd(f));
+          setConflictInfo(res.overlapping);
+          setPendingAction({ type: 'add', params });
           return;
         }
       }
@@ -89,17 +115,14 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
     } catch (e) { alert(e.message); }
   };
 
-  const handleUpdate = async (force = false) => {
+  const handleUpdate = async () => {
     if (!editDesc.trim()) return;
+    const params = { description: editDesc.trim(), start_hour: editStart, end_hour: editEnd };
     try {
-      const res = await tasksApi.update(editingTask.id, {
-        description: editDesc.trim(),
-        start_hour: editStart,
-        end_hour: editEnd,
-        force,
-      });
+      const res = await tasksApi.update(editingTask.id, params);
       if (res.conflict) {
-        handleConflict(res, (f) => handleUpdate(f));
+        setConflictInfo(res.overlapping);
+        setPendingAction({ type: 'edit', params });
         return;
       }
       setEditingTask(null);
@@ -138,6 +161,9 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
   };
 
   const fmtHour = (h) => String(h).padStart(2, '0') + ':00';
+  const conflictText = conflictInfo
+    ? conflictInfo.map(o => `${o.date ? o.date + ' ' : ''}${fmtHour(o.start_hour)}-${fmtHour(o.end_hour)} ${o.description}`).join('\n')
+    : '';
 
   if (loading) return <div className="p-4 text-sm text-gray-400">加载中...</div>;
 
@@ -189,7 +215,7 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
             placeholder="任务描述" autoFocus
             onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') setShowForm(false); }} />
           <div className="flex gap-1">
-            <button onClick={() => handleAdd()} className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">添加</button>
+            <button onClick={handleAdd} className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">添加</button>
             <button onClick={() => setShowForm(false)} className="px-3 py-1 text-xs text-gray-400 hover:text-gray-600">取消</button>
           </div>
         </div>
@@ -229,7 +255,7 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
                     className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:border-blue-400" autoFocus
                     onKeyDown={e => { if (e.key === 'Enter') handleUpdate(); if (e.key === 'Escape') setEditingTask(null); }} />
                   <div className="flex gap-1">
-                    <button onClick={() => handleUpdate()} className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">确定</button>
+                    <button onClick={handleUpdate} className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">确定</button>
                     <button onClick={() => setEditingTask(null)} className="px-3 py-1 text-xs text-gray-400 hover:text-gray-600">取消</button>
                   </div>
                 </div>
@@ -262,7 +288,6 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
                     </div>
                   </div>
 
-                  {/* Submissions */}
                   {showSubmissions === task.id && (
                     <div className="mt-2 pl-6 space-y-1">
                       {task.submissions.map((sub, idx) => (
@@ -284,7 +309,6 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
                     </div>
                   )}
 
-                  {/* Add submission buttons */}
                   <div className="mt-1.5 flex gap-1.5 pl-6">
                     <button onClick={() => handleTextSub(task.id)}
                       className="text-[10px] px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded transition-colors">+文本</button>
@@ -299,6 +323,33 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
           );
         })}
       </div>
+
+      {/* Conflict dialog */}
+      {conflictInfo && pendingAction && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={() => { setConflictInfo(null); setPendingAction(null); }}>
+          <div className="bg-white rounded-xl shadow-lg p-5 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+            <h4 className="text-sm font-medium text-gray-800 mb-2">时段冲突</h4>
+            <p className="text-xs text-gray-500 mb-3">以下任务时间有重叠：</p>
+            <div className="text-xs text-gray-600 bg-gray-50 rounded p-2 mb-4 whitespace-pre-line font-mono">
+              {conflictText}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => resolveConflict('skip')}
+                className="flex-1 py-2 border border-gray-200 text-gray-600 text-xs rounded-lg hover:bg-gray-50 transition-colors">
+                跳过 — 保留已有
+              </button>
+              <button onClick={() => resolveConflict('overwrite')}
+                className="flex-1 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs rounded-lg transition-colors">
+                覆盖 — 替换为新任务
+              </button>
+              <button onClick={() => resolveConflict('cancel')}
+                className="px-3 py-2 text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

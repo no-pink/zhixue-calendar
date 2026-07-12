@@ -104,19 +104,33 @@ export default function CalendarView({
         </div>
       </div>
 
-      {/* Month navigation + multi-select toggle */}
+      {/* Month navigation */}
       <div className="flex items-center justify-between mb-3">
         <button onClick={prevMonth} className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded">&lt;</button>
         <span className="text-sm font-medium text-gray-700">{year}年{month}月</span>
+        <button onClick={nextMonth} className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded">&gt;</button>
+      </div>
+
+      {/* Multi-select toggle */}
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <button
             onClick={() => { if (multiMode) exitMultiMode(); else setMultiMode(true); }}
-            className={`px-3 py-1 text-xs rounded-lg transition-colors ${multiMode ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+              multiMode
+                ? 'bg-blue-500 text-white ring-2 ring-blue-300'
+                : 'bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100'
+            }`}
           >
-            多选{multiMode ? '中' : ''}
+            {multiMode ? '✓ 多选模式已开启' : '☐ 多选模式'}
           </button>
-          <button onClick={nextMonth} className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded">&gt;</button>
         </div>
+        {selectedDates.length > 0 && (
+          <button onClick={() => exitMultiMode()}
+            className="text-xs text-gray-400 hover:text-red-500 transition-colors">
+            清除选中 ({selectedDates.length})
+          </button>
+        )}
       </div>
 
       {/* Status hint */}
@@ -129,15 +143,15 @@ export default function CalendarView({
 
       {/* Batch fill bar — appears when 2+ dates selected */}
       {selectedDates.length > 1 && (
-        <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
-          <span className="text-xs text-blue-700">已选 {selectedDates.length} 天</span>
+        <div className="mb-3 p-3 bg-blue-500 rounded-lg flex items-center justify-between shadow-sm">
+          <span className="text-sm font-medium text-white">已选 {selectedDates.length} 天</span>
           <div className="flex gap-2">
             <button onClick={() => exitMultiMode()}
-              className="px-3 py-1 text-xs text-gray-500 hover:text-gray-700 bg-white rounded border border-gray-200 transition-colors">
-              取消选择
+              className="px-3 py-1.5 text-xs text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-lg transition-colors">
+              取消
             </button>
             <button onClick={onBatch}
-              className="px-4 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded-lg transition-colors">
+              className="px-4 py-1.5 bg-white text-blue-600 text-xs font-medium rounded-lg hover:bg-blue-50 transition-colors shadow">
               批量填充
             </button>
           </div>
@@ -152,9 +166,9 @@ export default function CalendarView({
       </div>
 
       {/* Calendar grid */}
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-1 auto-rows-fr">
         {Array.from({ length: startDayOfWeek }).map((_, i) => (
-          <div key={`empty-${i}`} className="h-20" />
+          <div key={`empty-${i}`} />
         ))}
 
         {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -171,7 +185,7 @@ export default function CalendarView({
             <div
               key={day}
               onClick={(e) => inRange && selectDate(dateStr, e)}
-              className={`h-20 p-1.5 rounded-lg border text-sm relative transition-colors cursor-pointer
+              className={`min-h-[72px] sm:min-h-[88px] p-1.5 rounded-lg border text-sm relative transition-colors cursor-pointer
                 ${!inRange ? 'bg-gray-50 text-gray-300 cursor-default border-gray-50' : ''}
                 ${inRange && isMultiSelected ? 'border-blue-400 bg-blue-50' : ''}
                 ${inRange && isSingleSelected ? 'border-blue-400 bg-blue-50' : ''}

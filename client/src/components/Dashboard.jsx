@@ -99,10 +99,11 @@ export default function Dashboard() {
                   <div className={`
                     ${showTaskPanel ? 'fixed inset-0 z-30 md:static' : 'hidden md:block'}
                     md:w-80 lg:w-96 md:relative
-                    bg-white border-l border-gray-200 overflow-y-auto shrink-0
+                    bg-white border-l border-gray-200 shrink-0 flex flex-col
+                    overflow-hidden
                   `}>
                     {showTaskPanel && (
-                      <div className="md:hidden flex items-center justify-between p-3 border-b border-gray-100">
+                      <div className="md:hidden flex items-center justify-between p-3 border-b border-gray-100 shrink-0">
                         <span className="text-sm font-medium text-gray-700">任务详情</span>
                         <button onClick={() => setShowTaskPanel(false)} className="text-xs text-gray-400 hover:text-gray-600">关闭</button>
                       </div>

@@ -3,7 +3,7 @@ import { tasks as tasksApi } from '../api';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
-export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, selectedDates }) {
+export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, selectedDates, onShowBatch }) {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingTask, setEditingTask] = useState(null);
@@ -15,11 +15,11 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
   const [newEnd, setNewEnd] = useState(10);
   const [newDesc, setNewDesc] = useState('');
   const [showSubmissions, setShowSubmissions] = useState(null);
-  const [conflictInfo, setConflictInfo] = useState(null);  // { resolve: fn } awaiting user choice
-  const [pendingAction, setPendingAction] = useState(null); // { type, params }
+  const [conflictInfo, setConflictInfo] = useState(null);
+  const [conflictType, setConflictType] = useState(null); // 'overlap' | 'same_name'
+  const [pendingAction, setPendingAction] = useState(null);
 
   const isMulti = selectedDates && selectedDates.length > 1;
-  const activeDates = isMulti ? selectedDates : [date];
 
   useEffect(() => {
     const load = async () => {
@@ -44,29 +44,21 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
     if (!pendingAction) return;
     const { type, params } = pendingAction;
     setConflictInfo(null);
+    setConflictType(null);
     setPendingAction(null);
 
     if (mode === 'cancel') return;
 
     try {
       if (type === 'add') {
-        if (isMulti) {
-          await tasksApi.batchSimple({ ...params, conflict_mode: mode });
-        } else {
-          if (mode === 'overwrite') {
-            await tasksApi.create({ ...params, force: true });
-          } else if (mode === 'keep_both') {
-            await tasksApi.create({ ...params, skip_conflict_check: true });
-          }
-          // skip = don't create
+        if (mode === 'overwrite') {
+          await tasksApi.create({ ...params, force: true });
+        } else if (mode === 'keep_both') {
+          await tasksApi.create({ ...params, skip_conflict_check: true });
         }
+        // skip = don't create
       } else if (type === 'edit') {
-        await tasksApi.update(editingTask.id, {
-          description: params.description,
-          start_hour: params.start_hour,
-          end_hour: params.end_hour,
-          force: mode === 'overwrite',
-        });
+        await tasksApi.update(editingTask.id, { ...params, force: mode === 'overwrite' });
         setEditingTask(null);
       }
       await fetchTasks();
@@ -77,26 +69,14 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
 
   const handleAdd = async () => {
     if (!newDesc.trim()) return;
-    const params = {
-      plan_id: planId, date, start_hour: newStart, end_hour: newEnd,
-      description: newDesc.trim(),
-    };
-
+    const params = { plan_id: planId, date, start_hour: newStart, end_hour: newEnd, description: newDesc.trim() };
     try {
-      if (isMulti) {
-        const res = await tasksApi.batchSimple({ ...params, dates: activeDates });
-        if (res.conflict) {
-          setConflictInfo(res.overlapping);
-          setPendingAction({ type: 'add', params: { ...params, dates: activeDates } });
-          return;
-        }
-      } else {
-        const res = await tasksApi.create(params);
-        if (res.conflict) {
-          setConflictInfo(res.overlapping);
-          setPendingAction({ type: 'add', params });
-          return;
-        }
+      const res = await tasksApi.create(params);
+      if (res.conflict) {
+        setConflictInfo(res.overlapping);
+        setConflictType(res.conflictType);
+        setPendingAction({ type: 'add', params });
+        return;
       }
       setNewDesc('');
       setShowForm(false);
@@ -120,6 +100,7 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
       const res = await tasksApi.update(editingTask.id, params);
       if (res.conflict) {
         setConflictInfo(res.overlapping);
+        setConflictType(res.conflictType);
         setPendingAction({ type: 'edit', params });
         return;
       }
@@ -177,29 +158,23 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
       </div>
       <p className="text-xs text-gray-400 mb-3">{isMulti ? `${date} 等 ${selectedDates.length} 天` : date}</p>
 
-      {/* Add task button */}
-      {!showForm && !isMulti && (
+      {/* Multi-date mode: show a button that opens BatchFillModal */}
+      {isMulti && (
+        <button onClick={onShowBatch}
+          className="w-full py-3 mb-3 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
+          批量添加任务 ({selectedDates.length} 天)
+        </button>
+      )}
+
+      {/* Single-date mode: inline add form */}
+      {!isMulti && !showForm && (
         <button onClick={() => { setShowForm(true); setNewStart(8); setNewEnd(10); setNewDesc(''); }}
           className="w-full py-2 mb-3 border border-dashed border-gray-200 rounded-lg text-xs text-gray-400 hover:text-blue-500 hover:border-blue-300 transition-colors">
           + 添加任务
         </button>
       )}
-      {!showForm && isMulti && (
-        <button onClick={() => { setShowForm(true); setNewStart(8); setNewEnd(10); setNewDesc(''); }}
-          className="w-full py-2 mb-3 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg transition-colors shadow-sm">
-          + 批量添加任务 ({selectedDates.length} 天)
-        </button>
-      )}
-
-      {/* Add task form */}
-      {showForm && (
+      {!isMulti && showForm && (
         <div className="p-3 mb-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
-          {isMulti && (
-            <p className="text-[10px] text-blue-500">将添加到 {selectedDates.length} 天</p>
-          )}
-          {isMulti && (
-            <p className="text-[10px] text-orange-500">提示：与已有任务冲突时会弹出选项</p>
-          )}
           <div className="flex gap-2 items-center">
             <div className="flex-1">
               <label className="block text-[10px] text-gray-500 mb-0.5">开始</label>
@@ -230,7 +205,7 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
 
       {/* Task list */}
       <div className="space-y-2">
-        {tasks.length === 0 && !showForm && (
+        {tasks.length === 0 && !showForm && !isMulti && (
           <p className="text-xs text-gray-400 text-center py-8">当天暂无任务</p>
         )}
         {tasks.map(task => {
@@ -333,33 +308,43 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
 
       {/* Conflict dialog */}
       {conflictInfo && pendingAction && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={() => { setConflictInfo(null); setPendingAction(null); }}>
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={() => { setConflictInfo(null); setConflictType(null); setPendingAction(null); }}>
           <div className="bg-white rounded-xl shadow-lg p-5 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
-            <h4 className="text-sm font-medium text-gray-800 mb-2">任务冲突</h4>
-            <p className="text-xs text-gray-500 mb-3">以下任务冲突：</p>
-            <div className="text-xs text-gray-600 bg-gray-50 rounded p-2 mb-4 whitespace-pre-line font-mono">
-              {conflictText}
-            </div>
+            <h4 className="text-sm font-medium text-gray-800 mb-2">
+              {conflictType === 'same_name' ? '同名任务' : '时段冲突'}
+            </h4>
+            <p className="text-xs text-gray-500 mb-3">
+              {conflictType === 'same_name'
+                ? '已存在同名任务，请选择处理方式：'
+                : '以下任务时间有重叠：'}
+            </p>
+            {conflictType !== 'same_name' && (
+              <div className="text-xs text-gray-600 bg-gray-50 rounded p-2 mb-4 whitespace-pre-line font-mono">
+                {conflictText}
+              </div>
+            )}
             <div className="flex gap-2">
               <button onClick={() => resolveConflict('keep_both')}
                 className="flex-1 py-2 bg-green-500 hover:bg-green-600 text-white text-xs rounded-lg transition-colors">
-                全都要 — 新旧并行
+                {conflictType === 'same_name' ? '仍添加 — 保留新旧' : '全都要 — 新旧并行'}
               </button>
               <button onClick={() => resolveConflict('skip')}
                 className="flex-1 py-2 border border-gray-200 text-gray-600 text-xs rounded-lg hover:bg-gray-50 transition-colors">
-                跳过 — 不加新的
+                {conflictType === 'same_name' ? '取消添加' : '跳过 — 不加新的'}
               </button>
               <button onClick={() => resolveConflict('overwrite')}
                 className="flex-1 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs rounded-lg transition-colors">
                 替换 — 新的覆盖旧的
               </button>
             </div>
-            <div className="text-center pt-1">
-              <button onClick={() => resolveConflict('cancel')}
-                className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
-                取消操作
-              </button>
-            </div>
+            {conflictType === 'same_name' && (
+              <div className="text-center pt-1">
+                <button onClick={() => resolveConflict('skip')}
+                  className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                  取消添加
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

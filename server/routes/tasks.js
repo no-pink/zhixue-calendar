@@ -82,14 +82,14 @@ router.post('/', (req, res) => {
   // Report overlaps before creating (unless force or skip_conflict_check)
   const overlaps = findOverlaps(db, plan_id, date, sh, eh);
   if (overlaps.length > 0 && !force && !req.body.skip_conflict_check) {
-    return res.json({ conflict: true, overlapping: overlaps });
+    return res.json({ conflict: true, conflictType: 'overlap', overlapping: overlaps });
   }
 
-  // Check for same-name + overlapping (same plan+date+name where times overlap)
-  const sameName = db.prepare(`SELECT id, start_hour, end_hour FROM tasks WHERE plan_id = ? AND date = ? AND description = ? AND start_hour < ? AND end_hour > ?`)
-    .get(plan_id, date, description, eh, sh);
-  if (sameName) {
-    return res.json({ conflict: true, overlapping: [{ start_hour: sh, end_hour: eh, description: description + ' (同名且时段重叠)' }] });
+  // Check same name + same plan + same date (regardless of time)
+  const sameName = db.prepare('SELECT id, start_hour, end_hour FROM tasks WHERE plan_id = ? AND date = ? AND description = ?')
+    .get(plan_id, date, description);
+  if (sameName && !force && !req.body.skip_conflict_check) {
+    return res.json({ conflict: true, conflictType: 'same_name', overlapping: [{ start_hour: sh, end_hour: eh, description }] });
   }
 
   // Remove overlapping tasks if force (overwrite mode)
@@ -128,25 +128,15 @@ router.put('/:id', (req, res) => {
   `).get(req.params.id, req.user.id);
   if (!task) return res.status(404).json({ error: '任务不存在' });
 
-  // Check same-name on edit
-  const newDesc = description ?? task.description;
-  if (description !== undefined) {
-    const dup = db.prepare('SELECT id FROM tasks WHERE plan_id = ? AND date = ? AND description = ? AND id != ?')
-      .get(task.plan_id, task.date, newDesc, task.id);
-    if (dup && !force) {
-      return res.json({ conflict: true, overlapping: [{ start_hour: task.start_hour, end_hour: task.end_hour, description: newDesc + ' (同名)' }] });
-    }
-  }
-
   const newStart = start_hour ?? task.start_hour;
   const newEnd = end_hour ?? task.end_hour;
 
-  // Check same-name + overlapping on edit (name+time both checked)
+  // Check same name + same plan + same date (exclude self)
   if (description !== undefined) {
-    const dup = db.prepare('SELECT id FROM tasks WHERE plan_id = ? AND date = ? AND description = ? AND start_hour < ? AND end_hour > ? AND id != ?')
-      .get(task.plan_id, task.date, description, newEnd, newStart, task.id);
+    const dup = db.prepare('SELECT id FROM tasks WHERE plan_id = ? AND date = ? AND description = ? AND id != ?')
+      .get(task.plan_id, task.date, description, task.id);
     if (dup && !force) {
-      return res.json({ conflict: true, overlapping: [{ start_hour: newStart, end_hour: newEnd, description: description + ' (同名且时段重叠)' }] });
+      return res.json({ conflict: true, conflictType: 'same_name', overlapping: [{ start_hour: newStart, end_hour: newEnd, description }] });
     }
   }
 
@@ -154,7 +144,7 @@ router.put('/:id', (req, res) => {
   if ((start_hour !== undefined || end_hour !== undefined) && !force) {
     const overlaps = findOverlaps(db, task.plan_id, task.date, newStart, newEnd, task.id);
     if (overlaps.length > 0) {
-      return res.json({ conflict: true, overlapping: overlaps });
+      return res.json({ conflict: true, conflictType: 'overlap', overlapping: overlaps });
     }
   }
 

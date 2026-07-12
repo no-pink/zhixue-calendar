@@ -114,6 +114,7 @@ export default function Dashboard() {
                       refreshTrigger={refreshKey}
                       onRefresh={refresh}
                       selectedDates={selectedDates}
+                      onShowBatch={() => setShowBatch(true)}
                     />
                   </div>
                 </>

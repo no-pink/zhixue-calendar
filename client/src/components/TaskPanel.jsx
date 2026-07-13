@@ -3,7 +3,7 @@ import { tasks as tasksApi } from '../api';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
-export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, selectedDates, onShowBatch }) {
+export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, selectedDates, onShowBatch, onShowCopy, selectedCopyTasks, setSelectedCopyTasks }) {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingTask, setEditingTask] = useState(null);
@@ -18,6 +18,7 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
   const [conflictInfo, setConflictInfo] = useState(null);
   const [conflictType, setConflictType] = useState(null); // 'overlap' | 'same_name'
   const [pendingAction, setPendingAction] = useState(null);
+  const [copyMode, setCopyMode] = useState(false);
 
   const isMulti = selectedDates && selectedDates.length > 1;
 
@@ -158,6 +159,35 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
       </div>
       <p className="text-xs text-gray-400 mb-3">{isMulti ? `${date} 等 ${selectedDates.length} 天` : date}</p>
 
+      {/* Copy mode toggle */}
+      {!isMulti && !showForm && tasks.length > 0 && (
+        <div className="mb-3">
+          {!copyMode ? (
+            <button onClick={() => setCopyMode(true)}
+              className="w-full py-2 border border-dashed border-purple-200 rounded-lg text-xs text-purple-400 hover:text-purple-500 hover:border-purple-300 transition-colors">
+              📋 选择任务复制到其他日期
+            </button>
+          ) : (
+            <div className="p-2 bg-purple-50 border border-purple-200 rounded-lg flex items-center justify-between">
+              <span className="text-xs text-purple-600">
+                已选 {selectedCopyTasks.length} 个任务
+              </span>
+              <div className="flex gap-1">
+                <button onClick={onShowCopy}
+                  className="px-3 py-1 text-xs bg-purple-500 hover:bg-purple-600 text-white rounded transition-colors"
+                  disabled={selectedCopyTasks.length === 0}>
+                  复制到其他日期
+                </button>
+                <button onClick={() => { setCopyMode(false); setSelectedCopyTasks([]); }}
+                  className="px-3 py-1 text-xs text-purple-400 hover:text-purple-600 transition-colors">
+                  取消
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Multi-date mode: show a button that opens BatchFillModal */}
       {isMulti && (
         <button onClick={onShowBatch}
@@ -245,8 +275,21 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
                 <>
                   <div className="flex items-start justify-between gap-1">
                     <div className="flex items-start gap-2 flex-1 min-w-0">
-                      <input type="checkbox" checked={!!task.completed} onChange={() => handleToggle(task.id)}
-                        className="mt-1 shrink-0 cursor-pointer" />
+                      {copyMode ? (
+                        <input type="checkbox"
+                          checked={selectedCopyTasks.some(t => t.id === task.id)}
+                          onChange={() => {
+                            setSelectedCopyTasks(prev =>
+                              prev.some(t => t.id === task.id)
+                                ? prev.filter(t => t.id !== task.id)
+                                : [...prev, { id: task.id, start_hour: task.start_hour, end_hour: task.end_hour, description: task.description }]
+                            );
+                          }}
+                          className="mt-1 shrink-0 cursor-pointer accent-purple-500" />
+                      ) : (
+                        <input type="checkbox" checked={!!task.completed} onChange={() => handleToggle(task.id)}
+                          className="mt-1 shrink-0 cursor-pointer" />
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className="text-[11px] text-blue-500 font-mono mb-0.5">
                           {fmtHour(task.start_hour)} - {fmtHour(task.end_hour)}

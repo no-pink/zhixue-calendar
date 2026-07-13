@@ -50,6 +50,7 @@ export const tasks = {
   },
   batch: (data) => request('/tasks/batch', { method: 'POST', body: JSON.stringify(data) }),
   batchSimple: (data) => request('/tasks/batch-simple', { method: 'POST', body: JSON.stringify(data) }),
+  copy: (data) => request('/tasks/copy', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 export const backup = {

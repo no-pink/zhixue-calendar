@@ -4,6 +4,7 @@ import PlanList from './PlanList';
 import CalendarView from './CalendarView';
 import TaskPanel from './TaskPanel';
 import BatchFillModal from './BatchFillModal';
+import CopyTasksModal from './CopyTasksModal';
 import SettingsModal from './SettingsModal';
 import { plans as plansApi } from '../api';
 
@@ -16,6 +17,8 @@ export default function Dashboard() {
   const [showSettings, setShowSettings] = useState(false);
   const [selectedDates, setSelectedDates] = useState([]);
   const [showTaskPanel, setShowTaskPanel] = useState(false);
+  const [selectedCopyTasks, setSelectedCopyTasks] = useState([]);
+  const [showCopy, setShowCopy] = useState(false);
 
   const refresh = () => setRefreshKey(k => k + 1);
 
@@ -115,6 +118,9 @@ export default function Dashboard() {
                       onRefresh={refresh}
                       selectedDates={selectedDates}
                       onShowBatch={() => setShowBatch(true)}
+                      onShowCopy={() => setShowCopy(true)}
+                      selectedCopyTasks={selectedCopyTasks}
+                      setSelectedCopyTasks={setSelectedCopyTasks}
                     />
                   </div>
                 </>
@@ -139,6 +145,15 @@ export default function Dashboard() {
           dates={selectedDates}
           onClose={() => setShowBatch(false)}
           onSuccess={() => { setShowBatch(false); refresh(); }}
+        />
+      )}
+
+      {showCopy && (
+        <CopyTasksModal
+          planId={selectedPlan.id}
+          selectedTasks={selectedCopyTasks}
+          onClose={() => { setShowCopy(false); setSelectedCopyTasks([]); }}
+          onSuccess={() => { setShowCopy(false); setSelectedCopyTasks([]); refresh(); }}
         />
       )}
 

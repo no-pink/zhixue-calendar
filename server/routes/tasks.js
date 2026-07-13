@@ -347,4 +347,89 @@ router.post('/batch-simple', (req, res) => {
   res.json({ created, skipped });
 });
 
+// Copy tasks to other dates/plans
+router.post('/copy', (req, res) => {
+  const { task_ids, target_dates, target_plan_id, conflict_mode } = req.body;
+  if (!task_ids || !task_ids.length || !target_dates || !target_dates.length) {
+    return res.status(400).json({ error: '请选择任务和目标日期' });
+  }
+
+  const db = getDB();
+  const targetPlanId = target_plan_id || req.body.plan_id;
+
+  // Verify target plan belongs to user
+  const targetPlan = db.prepare('SELECT * FROM plans WHERE id = ? AND user_id = ?').get(targetPlanId, req.user.id);
+  if (!targetPlan) return res.status(404).json({ error: '目标计划不存在' });
+
+  // Fetch source tasks with ownership verification
+  const placeholders = task_ids.map(() => '?').join(',');
+  const sourceTasks = db.prepare(`
+    SELECT t.* FROM tasks t JOIN plans p ON t.plan_id = p.id
+    WHERE t.id IN (${placeholders}) AND p.user_id = ?
+  `).all(...task_ids, req.user.id);
+
+  if (sourceTasks.length === 0) return res.status(404).json({ error: '任务不存在' });
+
+  // If no conflict_mode specified, check and return conflicts for user to decide
+  if (!conflict_mode) {
+    const allConflicts = [];
+    target_dates.forEach(date => {
+      sourceTasks.forEach(task => {
+        const overlaps = findOverlaps(db, targetPlanId, date, task.start_hour, task.end_hour);
+        overlaps.forEach(o => allConflicts.push({ ...o, date, source_task_id: task.id, source_description: task.description }));
+        // Check same name
+        const sameName = db.prepare('SELECT id, start_hour, end_hour, description FROM tasks WHERE plan_id = ? AND date = ? AND description = ?')
+          .get(targetPlanId, date, task.description);
+        if (sameName) {
+          allConflicts.push({ ...sameName, date, source_task_id: task.id, source_description: task.description, conflictType: 'same_name' });
+        }
+      });
+    });
+    if (allConflicts.length > 0) {
+      return res.json({ conflict: true, conflicts: allConflicts });
+    }
+  }
+
+  const insertTask = db.prepare('INSERT INTO tasks (plan_id, date, start_hour, end_hour, description) VALUES (?, ?, ?, ?, ?)');
+
+  const count = { created: 0, skipped: 0, overwritten: 0 };
+  const conflictMode = conflict_mode || 'keep_both';
+
+  const transaction = db.transaction(() => {
+    target_dates.forEach(date => {
+      sourceTasks.forEach(task => {
+        if (conflictMode === 'overwrite') {
+          // Remove conflicting tasks
+          const toRemove = findOverlaps(db, targetPlanId, date, task.start_hour, task.end_hour);
+          if (toRemove.length > 0) {
+            const ids = toRemove.map(o => o.id);
+            db.prepare(`DELETE FROM tasks WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
+            count.overwritten += toRemove.length;
+          }
+          // Also remove same-name
+          const sn = db.prepare('SELECT id FROM tasks WHERE plan_id = ? AND date = ? AND description = ?').get(targetPlanId, date, task.description);
+          if (sn) {
+            db.prepare('DELETE FROM tasks WHERE id = ?').run(sn.id);
+            count.overwritten++;
+          }
+        } else if (conflictMode === 'skip') {
+          const overlaps = findOverlaps(db, targetPlanId, date, task.start_hour, task.end_hour);
+          const sameName = db.prepare('SELECT id FROM tasks WHERE plan_id = ? AND date = ? AND description = ?').get(targetPlanId, date, task.description);
+          if (overlaps.length > 0 || sameName) {
+            count.skipped++;
+            return; // skip this task-date combination
+          }
+        }
+        // keep_both — no conflict resolution, just insert
+
+        insertTask.run(targetPlanId, date, task.start_hour, task.end_hour, task.description);
+        count.created++;
+      });
+    });
+  });
+
+  transaction();
+  res.json(count);
+});
+
 module.exports = router;

@@ -19,6 +19,7 @@ export default function Dashboard() {
   const [showTaskPanel, setShowTaskPanel] = useState(false);
   const [selectedCopyTasks, setSelectedCopyTasks] = useState([]);
   const [showCopy, setShowCopy] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(false);
 
   const refresh = () => setRefreshKey(k => k + 1);
 
@@ -34,7 +35,16 @@ export default function Dashboard() {
     <div className="h-screen flex flex-col bg-[#f5f6f8]">
       {/* Header */}
       <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 shrink-0">
-        <h1 className="text-lg font-semibold text-gray-800">智学日程</h1>
+        <div className="flex items-center gap-2">
+          {/* Mobile hamburger */}
+          <button onClick={() => setShowSidebar(true)}
+            className="sm:hidden p-1.5 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <h1 className="text-lg font-semibold text-gray-800">智学日程</h1>
+        </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-500">{user?.username || user?.name}</span>
           <button onClick={() => setShowSettings(true)} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">设置</button>
@@ -44,7 +54,7 @@ export default function Dashboard() {
 
       {/* Main */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left sidebar - Plan list */}
+        {/* Left sidebar - Plan list (desktop always visible) */}
         <div className="w-60 md:w-72 bg-white border-r border-gray-200 overflow-y-auto shrink-0 hidden sm:block">
           <PlanList
             onSelect={plan => {
@@ -57,6 +67,30 @@ export default function Dashboard() {
             onPlanDeleted={handlePlanDeleted}
           />
         </div>
+
+        {/* Mobile sidebar drawer */}
+        {showSidebar && (
+          <div className="fixed inset-0 z-50 sm:hidden">
+            <div className="absolute inset-0 bg-black/30" onClick={() => setShowSidebar(false)} />
+            <div className="absolute left-0 top-0 bottom-0 w-64 bg-white shadow-xl animate-slide-right">
+              <div className="flex items-center justify-between p-3 border-b border-gray-100">
+                <span className="text-sm font-medium text-gray-700">计划列表</span>
+                <button onClick={() => setShowSidebar(false)} className="text-xs text-gray-400 hover:text-gray-600">&times;</button>
+              </div>
+              <PlanList
+                onSelect={plan => {
+                  setSelectedPlan(plan);
+                  setSelectedDate(null);
+                  setSelectedDates([]);
+                  setShowSidebar(false);
+                }}
+                selectedPlanId={selectedPlan?.id}
+                refreshTrigger={refreshKey}
+                onPlanDeleted={handlePlanDeleted}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Right content area */}
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden">

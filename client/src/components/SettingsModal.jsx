@@ -48,7 +48,7 @@ export default function SettingsModal({ onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-sm mx-4 animate-fade-scale" onClick={e => e.stopPropagation()}>
         <h3 className="text-base font-medium text-gray-800 mb-4">设置</h3>
 
         {/* Tabs */}

@@ -64,7 +64,7 @@ export default function CopyTasksModal({ planId, selectedTasks, onClose, onSucce
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto animate-fade-scale" onClick={e => e.stopPropagation()}>
         <h3 className="text-base font-medium text-gray-800 mb-1">复制任务到其他日期</h3>
         <p className="text-xs text-gray-400 mb-4">已选 {selectedTasks.length} 个任务</p>
 

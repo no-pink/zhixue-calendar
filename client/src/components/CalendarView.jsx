@@ -209,18 +209,13 @@ export default function CalendarView({
               </div>
 
               {inRange && taskInfo && (
-                <div className="mt-1 space-y-0.5">
-                  {taskInfo.total > 0 && (
-                    <div className="flex items-center gap-1">
-                      <div className="flex gap-0.5">
-                        {Array.from({ length: Math.min(taskInfo.total, 5) }).map((_, j) => (
-                          <div key={j}
-                            className={`w-1.5 h-1.5 rounded-full ${j < taskInfo.completed ? 'bg-green-400' : 'bg-gray-300'}`}
-                          />
-                        ))}
-                      </div>
+                <div className="mt-1.5 space-y-1">
+                  <div className="flex items-center gap-1">
+                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-green-400 rounded-full transition-all duration-300"
+                        style={{ width: taskInfo.total > 0 ? `${(taskInfo.completed / taskInfo.total) * 100}%` : '0%' }} />
                     </div>
-                  )}
+                  </div>
                   <p className="text-[10px] text-gray-400">
                     {taskInfo.completed}/{taskInfo.total}
                   </p>

@@ -1,6 +1,5 @@
 const express = require('express');
 const archiver = require('archiver');
-const extractZip = require('extract-zip');
 const path = require('path');
 const fs = require('fs');
 const { getDB } = require('../db');
@@ -9,19 +8,7 @@ const { auth } = require('./auth');
 const router = express.Router();
 const UPLOAD_DIR = path.join(__dirname, '../uploads');
 
-router.use((req, res, next) => {
-  // Support token from query param for direct download
-  const token = req.query.token || req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: '未登录' });
-  try {
-    const jwt = require('jsonwebtoken');
-    const JWT_SECRET = process.env.JWT_SECRET || 'zhixue-calendar-secret-key-2024';
-    req.user = jwt.verify(token, JWT_SECRET);
-    next();
-  } catch {
-    res.status(401).json({ error: '登录已过期' });
-  }
-});
+router.use(auth);
 
 // Export data
 router.get('/export', (req, res) => {
@@ -69,26 +56,10 @@ router.get('/export', (req, res) => {
   archive.finalize();
 });
 
-// Import data
-router.post('/import', (req, res) => {
-  const { dataJson } = req.body;
-  if (!dataJson) return res.status(400).json({ error: '请提供备份数据' });
-
-  try {
-    const data = JSON.parse(dataJson);
-    if (!data.plans || !data.tasks || !data.submissions) {
-      return res.status(400).json({ error: '备份数据格式无效' });
-    }
-  } catch {
-    return res.status(400).json({ error: '备份数据格式无效' });
-  }
-
-  res.json({ message: '数据解析成功，确认后将覆盖当前所有数据。请调用 /api/backup/restore 执行恢复。' });
-});
-
 // Restore data (full replace)
 router.post('/restore', (req, res) => {
   const { dataJson } = req.body;
+  if (!dataJson) return res.status(400).json({ error: '请提供备份数据' });
   const db = getDB();
   const userId = req.user.id;
 
@@ -96,6 +67,9 @@ router.post('/restore', (req, res) => {
   try {
     data = JSON.parse(dataJson);
   } catch {
+    return res.status(400).json({ error: '备份数据格式无效' });
+  }
+  if (!data.plans || !data.tasks) {
     return res.status(400).json({ error: '备份数据格式无效' });
   }
 
@@ -113,12 +87,12 @@ router.post('/restore', (req, res) => {
       });
     }
 
-    // Delete old data
+    // Delete old data (cascade handles tasks & submissions)
     db.prepare('DELETE FROM plans WHERE user_id = ?').run(userId);
 
     // Insert plans
     const insertPlan = db.prepare('INSERT INTO plans (id, user_id, name, start_date, end_date, created_at) VALUES (?, ?, ?, ?, ?, ?)');
-    const insertTask = db.prepare('INSERT INTO tasks (id, plan_id, date, hour, description, completed, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    const insertTask = db.prepare('INSERT INTO tasks (id, plan_id, date, start_hour, end_hour, description, completed, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
     const insertSub = db.prepare('INSERT INTO submissions (id, task_id, type, content, file_path, created_at) VALUES (?, ?, ?, ?, ?, ?)');
 
     data.plans.forEach(p => {
@@ -126,7 +100,7 @@ router.post('/restore', (req, res) => {
     });
 
     data.tasks.forEach(t => {
-      insertTask.run(t.id, t.plan_id, t.date, t.hour, t.description, t.completed || 0, t.created_at);
+      insertTask.run(t.id, t.plan_id, t.date, t.start_hour ?? t.hour, t.end_hour ?? (t.hour + 1), t.description, t.completed || 0, t.created_at);
     });
 
     data.submissions.forEach(s => {
@@ -136,16 +110,6 @@ router.post('/restore', (req, res) => {
 
   transaction();
   res.json({ message: '数据恢复成功' });
-});
-
-// Handle zip upload with embedded files
-router.post('/import-zip', (req, res) => {
-  const db = getDB();
-  const userId = req.user.id;
-
-  // We expect the client to send the zip file as multipart
-  // Or we handle via a chunked approach
-  res.json({ error: 'Please use POST /api/backup/restore with the data.json content' });
 });
 
 module.exports = router;

@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const { getDB } = require('../db');
 const { auth } = require('./auth');
+const { AppError } = require('../errors');
 const logger = require('../logger');
 
 const router = express.Router();
@@ -60,7 +61,7 @@ router.get('/export', (req, res) => {
 // Restore data (full replace)
 router.post('/restore', (req, res) => {
   const { dataJson } = req.body;
-  if (!dataJson) return res.status(400).json({ error: '请提供备份数据' });
+  if (!dataJson) throw new AppError('VALIDATION_ERROR', '请提供备份数据');
   const db = getDB();
   const userId = req.user.id;
 
@@ -68,10 +69,10 @@ router.post('/restore', (req, res) => {
   try {
     data = JSON.parse(dataJson);
   } catch {
-    return res.status(400).json({ error: '备份数据格式无效' });
+    throw new AppError('VALIDATION_ERROR', '备份数据格式无效');
   }
   if (!data.plans || !data.tasks) {
-    return res.status(400).json({ error: '备份数据格式无效' });
+    throw new AppError('VALIDATION_ERROR', '备份数据格式无效');
   }
 
   const transaction = db.transaction(() => {

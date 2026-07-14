@@ -1,6 +1,7 @@
 const express = require('express');
 const { getDB } = require('../db');
 const { auth } = require('./auth');
+const { AppError } = require('../errors');
 
 const router = express.Router();
 
@@ -21,12 +22,12 @@ router.get('/', (req, res) => {
 // Create plan
 router.post('/', (req, res) => {
   const { name, start_date, end_date } = req.body;
-  if (!name || !start_date || !end_date) return res.status(400).json({ error: '请填写完整信息' });
-  if (new Date(end_date) < new Date(start_date)) return res.status(400).json({ error: '结束日期不能早于开始日期' });
+  if (!name || !start_date || !end_date) throw new AppError('VALIDATION_ERROR', '请填写完整信息');
+  if (new Date(end_date) < new Date(start_date)) throw new AppError('VALIDATION_ERROR', '结束日期不能早于开始日期');
 
   const db = getDB();
   const existing = db.prepare('SELECT id FROM plans WHERE user_id = ? AND name = ?').get(req.user.id, name);
-  if (existing) return res.status(400).json({ error: '已有同名计划' });
+  if (existing) throw new AppError('CONFLICT', '已有同名计划');
 
   const result = db.prepare('INSERT INTO plans (user_id, name, start_date, end_date) VALUES (?, ?, ?, ?)')
     .run(req.user.id, name, start_date, end_date);
@@ -39,11 +40,11 @@ router.put('/:id', (req, res) => {
   const { name, start_date, end_date } = req.body;
   const db = getDB();
   const plan = db.prepare('SELECT * FROM plans WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
-  if (!plan) return res.status(404).json({ error: '计划不存在' });
+  if (!plan) throw new AppError('NOT_FOUND', '计划不存在', 404);
 
   if (name && name !== plan.name) {
     const dup = db.prepare('SELECT id FROM plans WHERE user_id = ? AND name = ? AND id != ?').get(req.user.id, name, req.params.id);
-    if (dup) return res.status(400).json({ error: '已有同名计划' });
+    if (dup) throw new AppError('CONFLICT', '已有同名计划');
   }
 
   db.prepare('UPDATE plans SET name = ?, start_date = ?, end_date = ? WHERE id = ?')
@@ -52,15 +53,14 @@ router.put('/:id', (req, res) => {
   res.json(updated);
 });
 
-// Delete plan (cascades to tasks and submissions, also deletes files)
+// Delete plan
 router.delete('/:id', (req, res) => {
   const db = getDB();
   const path = require('path');
   const fs = require('fs');
   const plan = db.prepare('SELECT * FROM plans WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
-  if (!plan) return res.status(404).json({ error: '计划不存在' });
+  if (!plan) throw new AppError('NOT_FOUND', '计划不存在', 404);
 
-  // Delete all uploaded files belonging to this plan's tasks
   const files = db.prepare(`
     SELECT s.file_path FROM submissions s
     JOIN tasks t ON t.id = s.task_id
@@ -72,14 +72,14 @@ router.delete('/:id', (req, res) => {
   });
 
   db.prepare('DELETE FROM plans WHERE id = ?').run(req.params.id);
-  res.json({ message: '删除成功' });
+  res.json({ code: 'OK', message: '删除成功' });
 });
 
-// Get plan calendar data (tasks grouped by date)
+// Get plan calendar data
 router.get('/:id/calendar', (req, res) => {
   const db = getDB();
   const plan = db.prepare('SELECT * FROM plans WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
-  if (!plan) return res.status(404).json({ error: '计划不存在' });
+  if (!plan) throw new AppError('NOT_FOUND', '计划不存在', 404);
 
   const tasks = db.prepare(`
     SELECT t.date,

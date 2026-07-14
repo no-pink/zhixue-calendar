@@ -56,7 +56,12 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
     const params = { plan_id: planId, date, start_hour: start, end_hour: end, description: desc.trim() };
     try {
       const res = await tasksApi.create(params);
-      if (res.conflict) { setConflictInfo(res.overlapping); setConflictType(res.conflictType); setPendingAction({ type: 'add', params }); return; }
+      if (res.code === 'CONFLICT_SAME_NAME' || res.code === 'CONFLICT_OVERLAP') {
+        setConflictInfo(res.details?.overlapping);
+        setConflictType(res.details?.conflictType);
+        setPendingAction({ type: 'add', params });
+        return;
+      }
       setShowForm(false);
       await load();
       onRefresh();
@@ -73,7 +78,12 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
     const params = { description: editDesc.trim(), start_hour: editStart, end_hour: editEnd };
     try {
       const res = await tasksApi.update(editingTask.id, params);
-      if (res.conflict) { setConflictInfo(res.overlapping); setConflictType(res.conflictType); setPendingAction({ type: 'edit', params }); return; }
+      if (res.code === 'CONFLICT_SAME_NAME' || res.code === 'CONFLICT_OVERLAP') {
+        setConflictInfo(res.details?.overlapping);
+        setConflictType(res.details?.conflictType);
+        setPendingAction({ type: 'edit', params });
+        return;
+      }
       setEditingTask(null);
       await load();
     } catch (e) { toast.error(e.message); }

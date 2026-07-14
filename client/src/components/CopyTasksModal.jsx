@@ -35,9 +35,9 @@ export default function CopyTasksModal({ planId, selectedTasks, onClose, onSucce
         target_plan_id: targetPlanId,
         conflict_mode: conflictMode,
       });
-      if (data.conflict) {
+      if (data.code === 'CONFLICT') {
         if (!window.confirm(
-          `目标日期存在 ${data.conflicts.length} 个冲突，是否继续？\n\n确定→保留新旧，取消→跳过冲突。`
+          `目标日期存在 ${data.details?.conflicts?.length || 0} 个冲突，是否继续？\n\n确定→保留新旧，取消→跳过冲突。`
         )) {
           const skipData = await tasksApi.copy({
             task_ids: selectedTasks.map(t => t.id),

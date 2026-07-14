@@ -11,7 +11,10 @@ async function request(path, options = {}) {
 
   const res = await fetch(`${BASE}${path}`, { ...options, headers });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || '请求失败');
+  if (!res.ok) {
+    const msg = (data.code && data.message) ? `[${data.code}] ${data.message}` : (data.error || '请求失败');
+    throw new Error(msg);
+  }
   return data;
 }
 

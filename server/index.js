@@ -2,6 +2,7 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 require('dotenv').config();
+require('express-async-errors');
 const config = require('./config');
 const logger = require('./logger');
 const { initDB } = require('./db');
@@ -22,7 +23,7 @@ app.use(rateLimit({
   max: config.rateLimitMax,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: '请求过于频繁，请稍后再试' },
+  message: { code: 'RATE_LIMITED', message: '请求过于频繁，请稍后再试' },
 }));
 
 app.use(require('cors')({ origin: config.corsOrigin }));
@@ -39,7 +40,8 @@ app.use('/api/backup', backupRoutes);
 
 app.use((err, req, res, next) => {
   logger.error(err);
-  res.status(500).json({ error: err.message || '服务器内部错误' });
+  const { sendError } = require('./errors');
+  sendError(res, err);
 });
 
 app.listen(config.port, () => {

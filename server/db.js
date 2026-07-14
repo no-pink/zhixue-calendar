@@ -1,18 +1,20 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
+const config = require('./config');
+const logger = require('./logger');
 
-const DB_PATH = path.join(__dirname, 'data.db');
-const UPLOAD_DIR = path.join(__dirname, 'uploads');
+const UPLOAD_DIR = config.uploadDir;
 
 let db;
 
 function initDB() {
   if (!fs.existsSync(UPLOAD_DIR)) {
     fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+    logger.info(`Created uploads directory: ${UPLOAD_DIR}`);
   }
 
-  db = new Database(DB_PATH);
+  db = new Database(config.dbPath);
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
 

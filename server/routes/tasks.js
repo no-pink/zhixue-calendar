@@ -2,8 +2,10 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const fs = require('fs');
 const { getDB } = require('../db');
 const { auth } = require('./auth');
+const config = require('../config');
 
 const router = express.Router();
 
@@ -14,7 +16,17 @@ const storage = multer.diskStorage({
     cb(null, `${uuidv4()}${ext}`);
   }
 });
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: { fileSize: config.maxFileSize },
+  fileFilter: (req, file, cb) => {
+    if (config.allowedMimeTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`不支持的文件类型: ${file.mimetype}`));
+    }
+  },
+});
 
 router.use(auth);
 
@@ -240,8 +252,6 @@ router.patch('/:id/toggle', (req, res) => {
 // Delete task
 router.delete('/:id', (req, res) => {
   const db = getDB();
-  const path = require('path');
-  const fs = require('fs');
   const task = db.prepare(`
     SELECT t.* FROM tasks t JOIN plans p ON t.plan_id = p.id
     WHERE t.id = ? AND p.user_id = ?

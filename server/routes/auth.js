@@ -1,17 +1,29 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const { getDB } = require('../db');
+const config = require('../config');
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'zhixue-calendar-secret-key-2024';
+
+const authLimiter = rateLimit({
+  windowMs: config.rateLimitWindow,
+  max: config.rateLimitAuthMax,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: '登录尝试过于频繁，请稍后再试' },
+});
+
+router.use('/login', authLimiter);
+router.use('/register', authLimiter);
 
 const auth = (req, res, next) => {
   const header = req.headers.authorization;
   if (!header) return res.status(401).json({ error: '未登录' });
   try {
     const token = header.split(' ')[1];
-    req.user = jwt.verify(token, JWT_SECRET);
+    req.user = jwt.verify(token, config.jwtSecret);
     next();
   } catch {
     res.status(401).json({ error: '登录已过期' });
@@ -28,7 +40,7 @@ router.post('/register', (req, res) => {
 
   const hash = bcrypt.hashSync(password, 10);
   const result = db.prepare('INSERT INTO users (username, password) VALUES (?, ?)').run(username, hash);
-  const token = jwt.sign({ id: result.lastInsertRowid, username }, JWT_SECRET, { expiresIn: '7d' });
+  const token = jwt.sign({ id: result.lastInsertRowid, username }, config.jwtSecret, { expiresIn: config.jwtExpiresIn });
 
   res.json({ token, user: { id: result.lastInsertRowid, username } });
 });
@@ -43,7 +55,7 @@ router.post('/login', (req, res) => {
     return res.status(400).json({ error: '用户名或密码错误' });
   }
 
-  const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
+  const token = jwt.sign({ id: user.id, username: user.username }, config.jwtSecret, { expiresIn: config.jwtExpiresIn });
   res.json({ token, user: { id: user.id, username: user.username } });
 });
 

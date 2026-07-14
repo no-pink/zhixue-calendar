@@ -8,3 +8,6 @@ dist/
 .env
 .claude/
 .memory/
+
+# Keep env example
+!server/.env.example

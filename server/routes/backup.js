@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const { getDB } = require('../db');
 const { auth } = require('./auth');
+const logger = require('../logger');
 
 const router = express.Router();
 const UPLOAD_DIR = path.join(__dirname, '../uploads');

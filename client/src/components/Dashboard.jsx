@@ -126,8 +126,11 @@ export default function Dashboard() {
                 </>
               )}
               {!selectedDate && (
-                <div className="hidden md:flex w-80 lg:w-96 items-center justify-center bg-white border-l border-gray-200 text-sm text-gray-400 shrink-0">
-                  请选择日期查看任务
+                <div className="hidden md:flex w-80 lg:w-96 flex-col items-center justify-center bg-white border-l border-gray-200 text-sm text-gray-400 shrink-0 gap-2">
+                  <svg className="w-10 h-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span>请选择日期查看任务</span>
                 </div>
               )}
             </>

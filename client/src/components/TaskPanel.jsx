@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { tasks as tasksApi } from '../api';
+import { useToast } from '../context/ToastContext';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
@@ -19,6 +20,7 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
   const [conflictType, setConflictType] = useState(null); // 'overlap' | 'same_name'
   const [pendingAction, setPendingAction] = useState(null);
   const [copyMode, setCopyMode] = useState(false);
+  const toast = useToast();
 
   const isMulti = selectedDates && selectedDates.length > 1;
 
@@ -64,7 +66,7 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
       }
       await fetchTasks();
       onRefresh();
-    } catch (e) { alert(e.message); }
+    } catch (e) { toast.error(e.message); }
     setShowForm(false);
   };
 
@@ -83,7 +85,7 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
       setShowForm(false);
       await fetchTasks();
       onRefresh();
-    } catch (e) { alert(e.message); }
+    } catch (e) { toast.error(e.message); }
   };
 
   const handleToggle = async (id) => {
@@ -91,7 +93,7 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
       await tasksApi.toggle(id);
       await fetchTasks();
       onRefresh();
-    } catch (e) { alert(e.message); }
+    } catch (e) { toast.error(e.message); }
   };
 
   const handleUpdate = async () => {
@@ -107,7 +109,7 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
       }
       setEditingTask(null);
       await fetchTasks();
-    } catch (e) { alert(e.message); }
+    } catch (e) { toast.error(e.message); }
   };
 
   const handleDelete = async (id) => {
@@ -116,7 +118,7 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
       await tasksApi.delete(id);
       await fetchTasks();
       onRefresh();
-    } catch (e) { alert(e.message); }
+    } catch (e) { toast.error(e.message); }
   };
 
   const handleFileUpload = async (taskId, file) => {
@@ -126,7 +128,7 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
       const subs = [...(task?.submissions || []), { type: file.type.startsWith('image/') ? 'image' : 'file', content: file.name, file_path: data.file_path }];
       await tasksApi.update(taskId, { submissions: subs });
       await fetchTasks();
-    } catch (e) { alert(e.message); }
+    } catch (e) { toast.error(e.message); }
   };
 
   const handleTextSub = async (taskId) => {
@@ -137,7 +139,7 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
       const subs = [...(task?.submissions || []), { type: 'text', content: text }];
       await tasksApi.update(taskId, { submissions: subs });
       await fetchTasks();
-    } catch (e) { alert(e.message); }
+    } catch (e) { toast.error(e.message); }
   };
 
   const fmtHour = (h) => String(h).padStart(2, '0') + ':00';

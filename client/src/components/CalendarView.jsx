@@ -135,7 +135,10 @@ export default function CalendarView({
 
       {/* Status hint */}
       {!multiMode && selectedDates.length <= 1 && (
-        <p className="text-xs text-gray-400 mb-2">点击日期查看任务，点击"多选"批量操作</p>
+        <p className="text-xs text-gray-400 mb-2">
+          <svg className="w-3.5 h-3.5 inline mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" /></svg>
+          点击日期查看任务，<span className="text-blue-500 font-medium">多选</span>可批量操作
+        </p>
       )}
       {multiMode && (
         <p className="text-xs text-blue-500 mb-2">多选模式 — 点击日期切换选中，操作完成后自动退出</p>

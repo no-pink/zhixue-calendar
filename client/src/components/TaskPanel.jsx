@@ -145,7 +145,14 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
     ? conflictInfo.map(o => `${o.date ? o.date + ' ' : ''}${fmtHour(o.start_hour)}-${fmtHour(o.end_hour)} ${o.description}`).join('\n')
     : '';
 
-  if (loading) return <div className="p-4 text-sm text-gray-400">加载中...</div>;
+  if (loading) return (
+    <div className="p-4 flex flex-col items-center justify-center py-12 text-gray-400">
+      <svg className="w-8 h-8 animate-pulse mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+      </svg>
+      <span className="text-sm">加载中...</span>
+    </div>
+  );
 
   return (
     <div className="p-4">
@@ -307,9 +314,9 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
                     </div>
                     <div className="flex gap-1 shrink-0">
                       <button onClick={() => { setEditingTask(task); setEditDesc(task.description); setEditStart(task.start_hour); setEditEnd(task.end_hour); }}
-                        className="text-[10px] text-gray-400 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">编辑</button>
+                        className="text-[10px] text-gray-400 hover:text-blue-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity">编辑</button>
                       <button onClick={() => handleDelete(task.id)}
-                        className="text-[10px] text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">删除</button>
+                        className="text-[10px] text-gray-400 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity">删除</button>
                     </div>
                   </div>
 

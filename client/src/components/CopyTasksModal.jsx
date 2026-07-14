@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { tasks as tasksApi, plans as plansApi } from '../api';
+import { useToast } from '../context/ToastContext';
 
 export default function CopyTasksModal({ planId, selectedTasks, onClose, onSuccess }) {
   const [targetPlanId, setTargetPlanId] = useState(planId);
@@ -9,6 +10,7 @@ export default function CopyTasksModal({ planId, selectedTasks, onClose, onSucce
   const [conflictMode, setConflictMode] = useState('keep_both');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const toast = useToast();
 
   useEffect(() => {
     plansApi.list().then(setPlans).catch(console.error);
@@ -35,7 +37,7 @@ export default function CopyTasksModal({ planId, selectedTasks, onClose, onSucce
       });
       if (data.conflict) {
         if (!window.confirm(
-          `目标日期存在 ${data.conflicts.length} 个冲突，是否仍要继续？\n\n选择"确定"将以"全都要"模式执行，选择"取消"以"跳过冲突"模式执行。`
+          `目标日期存在 ${data.conflicts.length} 个冲突，是否继续？\n\n确定→保留新旧，取消→跳过冲突。`
         )) {
           const skipData = await tasksApi.copy({
             task_ids: selectedTasks.map(t => t.id),
@@ -56,9 +58,7 @@ export default function CopyTasksModal({ planId, selectedTasks, onClose, onSucce
       } else {
         setResult(data);
       }
-    } catch (e) {
-      alert(e.message);
-    }
+    } catch (e) { toast.error(e.message); }
     setLoading(false);
   };
 
@@ -121,8 +121,8 @@ export default function CopyTasksModal({ planId, selectedTasks, onClose, onSucce
                 <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer p-2 rounded hover:bg-gray-50">
                   <input type="radio" name="conflict" checked={conflictMode === 'keep_both'} onChange={() => setConflictMode('keep_both')} />
                   <div>
-                    <div className="font-medium text-gray-700">全都要</div>
-                    <div className="text-[10px] text-gray-400">保留原有任务，同时添加复制任务（新旧并行）</div>
+                    <div className="font-medium text-gray-700">保留新旧</div>
+                    <div className="text-[10px] text-gray-400">保留原有任务，同时添加复制的任务</div>
                   </div>
                 </label>
                 <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer p-2 rounded hover:bg-gray-50">
@@ -135,8 +135,8 @@ export default function CopyTasksModal({ planId, selectedTasks, onClose, onSucce
                 <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer p-2 rounded hover:bg-gray-50">
                   <input type="radio" name="conflict" checked={conflictMode === 'overwrite'} onChange={() => setConflictMode('overwrite')} />
                   <div>
-                    <div className="font-medium text-gray-700">替换</div>
-                    <div className="text-[10px] text-gray-400">用复制的任务替换冲突的原有任务</div>
+                    <div className="font-medium text-gray-700">覆盖</div>
+                    <div className="text-[10px] text-gray-400">用新任务替换冲突的原有任务</div>
                   </div>
                 </label>
               </div>

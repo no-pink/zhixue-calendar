@@ -369,7 +369,7 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
                 <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               )}
               <h4 className={`text-sm font-medium ${conflictType === 'same_name' ? 'text-yellow-700' : 'text-red-700'}`}>
-                {conflictType === 'same_name' ? '同名任务' : '时段冲突'}
+                {conflictType === 'same_name' ? '任务名重复' : '时段冲突'}
               </h4>
             </div>
             <p className="text-xs mb-3">
@@ -385,15 +385,15 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
             <div className="flex gap-2 mt-4">
               <button onClick={() => resolveConflict('keep_both')}
                 className="flex-1 py-2 bg-green-500 hover:bg-green-600 text-white text-xs rounded-lg transition-colors">
-                {conflictType === 'same_name' ? '仍添加 — 保留新旧' : '全都要 — 新旧并行'}
+                保留新旧
               </button>
               <button onClick={() => resolveConflict('skip')}
                 className="flex-1 py-2 border border-gray-200 text-gray-600 text-xs rounded-lg hover:bg-gray-50 transition-colors">
-                {conflictType === 'same_name' ? '取消添加' : '跳过 — 不加新的'}
+                跳过
               </button>
               <button onClick={() => resolveConflict('overwrite')}
                 className="flex-1 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs rounded-lg transition-colors">
-                替换 — 新的覆盖旧的
+                覆盖
               </button>
             </div>
             {conflictType === 'same_name' && (

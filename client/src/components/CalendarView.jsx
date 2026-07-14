@@ -161,9 +161,46 @@ export default function CalendarView({
         </div>
       )}
 
-      {/* Calendar wrapper with horizontal scroll */}
-      <div className="overflow-x-auto -mx-4 sm:-mx-6 px-4 sm:px-6">
-        <div className="min-w-[490px]">
+      {/* Calendar wrapper */}
+      <div className="-mx-4 sm:-mx-6 px-4 sm:px-6">
+        {/* Mobile: single-row scrollable list */}
+        <div className="md:hidden mb-2 overflow-y-auto max-h-[400px]">
+          {Array.from({ length: daysInMonth }).map((_, i) => {
+            const day = i + 1;
+            const dateStr = formatDate(year, month, day);
+            const inRange = isInPlanRange(year, month, day);
+            const taskInfo = tasksByDate[dateStr];
+            const isMultiSelected = selectedDates.includes(dateStr);
+            const isSingleSelected = selectedDate === dateStr && selectedDates.length <= 1;
+            const isSelected = isSingleSelected || isMultiSelected;
+            const isToday = new Date().toISOString().slice(0, 10) === dateStr;
+            if (!inRange) return null;
+            return (
+              <div key={day} onClick={(e) => selectDate(dateStr, e)}
+                className={`flex items-center gap-3 px-3 py-2.5 border-b border-gray-50 last:border-0 cursor-pointer transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                <div className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium shrink-0 ${isToday ? 'bg-blue-500 text-white' : isSelected ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}>
+                  {day}
+                </div>
+                <div className="flex-1 min-w-0">
+                  {taskInfo ? (
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-green-400 rounded-full" style={{ width: taskInfo.total > 0 ? `${(taskInfo.completed / taskInfo.total) * 100}%` : '0%' }} />
+                      </div>
+                      <span className="text-[10px] text-gray-400 shrink-0">{taskInfo.completed}/{taskInfo.total}</span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-gray-300">无任务</span>
+                  )}
+                </div>
+                {isMultiSelected && <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Desktop: grid calendar */}
+        <div className="hidden md:block min-w-[490px]">
       {/* Weekday header */}
       <div className="grid grid-cols-7 gap-1 mb-1">
         {WEEKDAYS.map(w => (
@@ -232,8 +269,8 @@ export default function CalendarView({
           );
         })}
       </div>
-        </div>{/* end min-w */}
-      </div>{/* end overflow-x-auto */}
+        </div>{/* end md:block grid */}
+      </div>{/* end calendar wrapper */}
     </div>
   );
 }

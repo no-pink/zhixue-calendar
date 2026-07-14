@@ -5,6 +5,7 @@ require('dotenv').config();
 const config = require('./config');
 const logger = require('./logger');
 const { initDB } = require('./db');
+const { runMigrations } = require('./migrate');
 const authRoutes = require('./routes/auth');
 const planRoutes = require('./routes/plans');
 const taskRoutes = require('./routes/tasks');
@@ -29,6 +30,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
 
 initDB();
+runMigrations();
 
 app.use('/api/auth', authRoutes);
 app.use('/api/plans', planRoutes);

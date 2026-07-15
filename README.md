@@ -11,7 +11,7 @@
 | 数据库 | SQLite (better-sqlite3) |
 | 日志 | Pino |
 | 认证 | JWT (jsonwebtoken) + bcryptjs |
-| 限速 | express-rate-limit |
+| 安全 | helmet + express-rate-limit + CORS |
 
 ## 功能
 
@@ -61,8 +61,17 @@ npm run dev
 ### 生产部署
 
 ```bash
-cd client && npx vite build
-# 将 dist/ 部署到 Nginx/CDN，后端用 pm2 或 systemd 管理
+# 1. 配置环境变量
+cp server/.env.example server/.env
+# 编辑 server/.env 设置强随机 JWT_SECRET、CORS_ORIGIN、NODE_ENV=production
+
+# 2. 构建前端
+cd client && npx vite build   # 产出 dist/
+
+# 3. 部署
+# 将 dist/ 部署到 Nginx/CDN
+# 后端用 pm2 start server/index.js 管理
+# 详见 说明文档.md 第八节
 ```
 
 ## 配置说明
@@ -77,6 +86,7 @@ cd client && npx vite build
 | `LOG_LEVEL` | info | 日志级别 |
 | `MAX_FILE_SIZE` | 10485760 (10MB) | 上传文件大小上限 |
 | `ALLOWED_MIME_TYPES` | image/jpeg,image/png,... | 允许上传的 MIME 类型 |
+| `CORS_ORIGIN` | * | CORS 允许的源（生产环境必须设为具体域名） |
 | `RATE_LIMIT_MAX` | 100 | 全局请求上限/15分钟 |
 | `RATE_LIMIT_AUTH_MAX` | 10 | 登录接口请求上限/15分钟 |
 
@@ -87,8 +97,11 @@ cd client && npx vite build
 │   └── src/
 │       ├── components/
 │       │   ├── Dashboard.jsx            # 主面板（响应式布局）
-│       │   ├── CalendarView.jsx         # 日历视图（含多选模式）
+│       │   ├── CalendarView.jsx         # 日历视图（桌面网格 + 移动端列表）
 │       │   ├── TaskPanel.jsx            # 任务详情面板（含冲突弹窗）
+│       │   ├── TaskItem.jsx             # 单个任务卡片（勾选/编辑/提交物）
+│       │   ├── TaskForm.jsx             # 新建任务表单（时段 + 描述）
+│       │   ├── TaskConflictDialog.jsx   # 冲突处理弹窗（同名/重叠）
 │       │   ├── PlanList.jsx             # 计划列表
 │       │   ├── Login.jsx                # 登录/注册
 │       │   ├── BatchFillModal.jsx       # 批量填充弹窗
@@ -103,6 +116,7 @@ cd client && npx vite build
 │   ├── config.js                        # 统一配置（dotenv）
 │   ├── logger.js                        # 结构化日志（pino）
 │   ├── db.js                            # SQLite 初始化与表结构
+│   ├── errors.js                        # 错误码体系（AppError + sendError）
 │   ├── migrate.js                       # 数据库迁移引擎
 │   ├── migrations/                      # 版本化 SQL 迁移文件
 │   ├── services/
@@ -112,6 +126,8 @@ cd client && npx vite build
 │   │   ├── plans.js                     # 计划 CRUD（含同名检测）
 │   │   ├── tasks.js                     # 任务 CRUD + 冲突检测 + 批量操作
 │   │   └── backup.js                    # 数据导出/恢复
+│   ├── test/
+│   │   └── routes.test.js               # 20 个集成测试
 │   ├── uploads/                         # 上传文件存储
 │   └── .env.example                     # 环境变量示例
 ├── package.json                         # 根目录脚本

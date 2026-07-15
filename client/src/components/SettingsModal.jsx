@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { backup as backupApi } from '../api';
+import JSZip from 'jszip';
 
 export default function SettingsModal({ onClose }) {
   const { changePassword, logout } = useAuth();
@@ -34,10 +35,21 @@ export default function SettingsModal({ onClose }) {
     if (!file) return;
     setImportMsg('');
     try {
-      const text = await file.text();
-      const parsed = JSON.parse(text);
+      let jsonStr;
+      if (file.name.endsWith('.zip')) {
+        const zip = await JSZip.loadAsync(file);
+        const dataFile = zip.file('data.json');
+        if (!dataFile) {
+          setImportMsg('导入失败：ZIP 包中未找到 data.json 文件');
+          return;
+        }
+        jsonStr = await dataFile.async('string');
+      } else {
+        jsonStr = await file.text();
+      }
+      const parsed = JSON.parse(jsonStr);
       if (!window.confirm('导入将完全替换当前所有数据，确认继续？')) return;
-      const result = await backupApi.restore(JSON.stringify(parsed));
+      const result = await backupApi.restore(jsonStr);
       setImportMsg(result.message);
       alert('数据恢复成功！页面将重新加载。');
       window.location.reload();

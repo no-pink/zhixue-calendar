@@ -4,8 +4,7 @@ import { useToast } from '../context/ToastContext';
 import TaskForm from './TaskForm';
 import TaskItem from './TaskItem';
 import TaskConflictDialog from './TaskConflictDialog';
-
-const HOURS = Array.from({ length: 24 }, (_, i) => i);
+import TimeRangePicker from './TimeRangePicker';
 
 export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, selectedDates, onShowBatch, onShowCopy, selectedCopyTasks, setSelectedCopyTasks }) {
   const [tasks, setTasks] = useState([]);
@@ -96,8 +95,6 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
     setEditEnd(task.end_hour);
   };
 
-  const fmtHour = (h) => String(h).padStart(2, '0') + ':00';
-
   if (loading) return (
     <div className="p-4 flex flex-col items-center justify-center py-12 text-gray-400">
       <svg className="w-8 h-8 animate-pulse mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -160,23 +157,7 @@ export default function TaskPanel({ planId, date, refreshTrigger, onRefresh, sel
       {/* Edit form inline */}
       {editingTask && (
         <div className="p-3 mb-3 bg-yellow-50 border border-yellow-200 rounded-lg space-y-2">
-          <div className="flex gap-2 items-center">
-            <div className="flex-1">
-              <label className="block text-[10px] text-gray-500 mb-0.5">开始</label>
-              <select value={editStart} onChange={e => setEditStart(Number(e.target.value))}
-                className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:border-blue-400 bg-white">
-                {HOURS.map(h => <option key={h} value={h}>{fmtHour(h)}</option>)}
-              </select>
-            </div>
-            <span className="text-xs text-gray-400 mt-5">至</span>
-            <div className="flex-1">
-              <label className="block text-[10px] text-gray-500 mb-0.5">结束</label>
-              <select value={editEnd} onChange={e => setEditEnd(Number(e.target.value))}
-                className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:border-blue-400 bg-white">
-                {HOURS.map(h => <option key={h} value={h + 1}>{fmtHour(h + 1)}</option>)}
-              </select>
-            </div>
-          </div>
+          <TimeRangePicker startHour={editStart} endHour={editEnd} onStartChange={setEditStart} onEndChange={setEditEnd} />
           <input type="text" value={editDesc} onChange={e => setEditDesc(e.target.value)}
             className="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:border-blue-400" autoFocus
             onKeyDown={e => { if (e.key === 'Enter') handleUpdate(); if (e.key === 'Escape') setEditingTask(null); }} />

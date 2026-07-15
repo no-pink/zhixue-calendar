@@ -1,5 +1,7 @@
 const express = require('express');
+const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 require('express-async-errors');
@@ -17,6 +19,18 @@ const app = express();
 // Trust proxy for rate limiting behind reverse proxy
 app.set('trust proxy', 1);
 
+// Security headers (helmet)
+app.use(helmet({
+  contentSecurityPolicy: false, // CSP managed by Nginx or later via helmet config
+}));
+
+// CORS
+const corsOptions = { origin: config.corsOrigin };
+if (process.env.NODE_ENV === 'production' && config.corsOrigin === '*') {
+  logger.warn('CORS_ORIGIN is "*" in production — consider restricting to a specific domain');
+}
+app.use(cors(corsOptions));
+
 // Global rate limit
 app.use(rateLimit({
   windowMs: config.rateLimitWindow,
@@ -26,7 +40,6 @@ app.use(rateLimit({
   message: { code: 'RATE_LIMITED', message: '请求过于频繁，请稍后再试' },
 }));
 
-app.use(require('cors')({ origin: config.corsOrigin }));
 app.use(express.json({ limit: '50mb' }));
 app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
 

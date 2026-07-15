@@ -1,4 +1,6 @@
-const BASE = '/api';
+/// <reference types="vite/client" />
+
+const BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
 function getToken() {
   return localStorage.getItem('token');

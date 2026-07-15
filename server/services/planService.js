@@ -73,6 +73,43 @@ function getPlanCalendar(planId) {
   return { plan, tasks };
 }
 
+function getPlanStats(planId) {
+  const db = getDB();
+
+  const completion = db.prepare(`
+    SELECT COUNT(*) as total, SUM(completed) as completed
+    FROM tasks WHERE plan_id = ?
+  `).get(planId);
+
+  const trend = db.prepare(`
+    SELECT date, COUNT(*) as total, SUM(completed) as completed
+    FROM tasks WHERE plan_id = ? GROUP BY date ORDER BY date DESC LIMIT 7
+  `).all(planId).reverse();
+
+  const streak = db.prepare(`
+    SELECT DISTINCT date FROM tasks
+    WHERE plan_id = ? AND completed = 1
+    ORDER BY date DESC
+  `).all(planId).map(r => r.date);
+
+  let streakCount = 0;
+  const today = new Date().toISOString().slice(0, 10);
+  for (let i = 0; i < streak.length; i++) {
+    const expected = new Date();
+    expected.setDate(expected.getDate() - i);
+    const expectedStr = expected.toISOString().slice(0, 10);
+    if (streak[i] === expectedStr) streakCount++;
+    else break;
+  }
+
+  const hours = db.prepare(`
+    SELECT start_hour, COUNT(*) as count
+    FROM tasks WHERE plan_id = ? GROUP BY start_hour ORDER BY count DESC
+  `).all(planId);
+
+  return { completion, trend, streak: streakCount, hours };
+}
+
 module.exports = {
   getPlansByUser,
   findPlanByName,
@@ -80,4 +117,5 @@ module.exports = {
   updatePlan,
   deletePlanWithCleanup,
   getPlanCalendar,
+  getPlanStats,
 };

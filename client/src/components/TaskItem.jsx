@@ -35,6 +35,16 @@ export default function TaskItem({ task, copyMode, selectedCopyTasks, setSelecte
     } catch (e) { toast.error(e.message); }
   };
 
+  const adjustHour = async (delta) => {
+    const newStart = Math.max(0, Math.min(23, task.start_hour + delta));
+    const newEnd = Math.max(1, Math.min(24, task.end_hour + delta));
+    if (newStart === task.start_hour && newEnd === task.end_hour) return;
+    try {
+      await tasksApi.update(task.id, { start_hour: newStart, end_hour: newEnd, force: true });
+      onRefresh();
+    } catch (e) { toast.error(e.message); }
+  };
+
   return (
     <div className={`group p-3 rounded-lg border ${task.completed ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100 hover:border-gray-200'}`}>
       <div className="flex items-start justify-between gap-1">
@@ -55,8 +65,12 @@ export default function TaskItem({ task, copyMode, selectedCopyTasks, setSelecte
               className="mt-1 shrink-0 cursor-pointer" />
           )}
           <div className="flex-1 min-w-0">
-            <div className="text-[11px] text-blue-500 font-mono mb-0.5">
-              {fmtHour(task.start_hour)} - {fmtHour(task.end_hour)}
+            <div className="text-[11px] text-blue-500 font-mono mb-0.5 flex items-center gap-1">
+              <button onClick={() => adjustHour(-1)} title="提前1小时"
+                className="text-[10px] px-1 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-400 hover:text-blue-600 transition-colors leading-none">&minus;</button>
+              <span>{fmtHour(task.start_hour)} - {fmtHour(task.end_hour)}</span>
+              <button onClick={() => adjustHour(1)} title="延后1小时"
+                className="text-[10px] px-1 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-400 hover:text-blue-600 transition-colors leading-none">+</button>
             </div>
             <span className={`text-sm ${task.completed ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
               {task.description}

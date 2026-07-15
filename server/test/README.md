@@ -118,6 +118,12 @@ testDb.prepare('INSERT OR IGNORE INTO plans (id, user_id, name, start_date, end_
 | 18 | `copies tasks to other dates` | 复制任务到 2 个目标日期 |
 | 19 | `deletes a task` | 删除成功 → `OK` |
 | 20 | `rejects request without auth token` | 无 token → `AUTH_REQUIRED` |
+| 15 | `updates a task` | 更新描述和时段 |
+| 16 | `rejects unauthorized access` | 其他用户的 token → `NOT_FOUND` |
+| 17 | `batch fills tasks` | 2天×2时段 = 4个任务 |
+| 18 | `copies tasks to other dates` | 复制任务到 2 个目标日期 |
+| 19 | `deletes a task` | 删除成功 → `OK` |
+| 20 | `rejects request without auth token` | 无 token → `AUTH_REQUIRED` |
 
 ---
 

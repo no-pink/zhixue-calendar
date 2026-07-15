@@ -6,6 +6,7 @@ import TaskPanel from './TaskPanel';
 import BatchFillModal from './BatchFillModal';
 import CopyTasksModal from './CopyTasksModal';
 import SettingsModal from './SettingsModal';
+import StatsCards from './StatsCards';
 import { plans as plansApi } from '../api';
 
 export default function Dashboard() {
@@ -118,6 +119,7 @@ export default function Dashboard() {
             <>
               {/* Calendar */}
               <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+                <StatsCards planId={selectedPlan.id} />
                 <CalendarView
                   plan={selectedPlan}
                   onSelectDate={date => {

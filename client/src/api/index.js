@@ -32,6 +32,7 @@ export const plans = {
   update: (id, data) => request(`/plans/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id) => request(`/plans/${id}`, { method: 'DELETE' }),
   calendar: (id) => request(`/plans/${id}/calendar`),
+  stats: (id) => request(`/plans/${id}/stats`),
 };
 
 export const tasks = {

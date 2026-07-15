@@ -62,4 +62,13 @@ router.get('/:id/calendar', (req, res) => {
   res.json(planService.getPlanCalendar(req.params.id));
 });
 
+// Get plan statistics
+router.get('/:id/stats', (req, res) => {
+  const db = getDB();
+  const plan = db.prepare('SELECT * FROM plans WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+  if (!plan) throw new AppError('NOT_FOUND', '计划不存在', 404);
+
+  res.json(planService.getPlanStats(req.params.id));
+});
+
 module.exports = router;

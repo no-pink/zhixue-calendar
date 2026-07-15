@@ -137,6 +137,23 @@ describe('Plans', () => {
     assert.ok(Array.isArray(res.body));
     assert.ok(res.body.length > 0);
   });
+
+  it('returns plan stats', async () => {
+    // Seed some tasks first
+    testDb.prepare('INSERT OR IGNORE INTO tasks (id, plan_id, date, start_hour, end_hour, description, completed) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(99, 1, '2026-07-01', 8, 10, '学习高数', 1);
+    testDb.prepare('INSERT OR IGNORE INTO tasks (id, plan_id, date, start_hour, end_hour, description, completed) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(98, 1, '2026-07-02', 14, 16, '学习英语', 0);
+
+    const res = await request(createApp())
+      .get('/api/plans/1/stats')
+      .set('Authorization', `Bearer ${getToken()}`);
+    assert.equal(res.status, 200);
+    assert.ok(res.body.completion);
+    assert.ok(typeof res.body.streak === 'number');
+    assert.ok(Array.isArray(res.body.hours));
+    assert.ok(Array.isArray(res.body.trend));
+  });
 });
 
 describe('Tasks', () => {
@@ -230,6 +247,25 @@ describe('Tasks', () => {
       .send({ task_ids: [taskId], target_dates: ['2026-05-01', '2026-05-02'], plan_id: 1, conflict_mode: 'keep_both' });
     assert.equal(res.status, 200);
     assert.equal(res.body.created, 2);
+  });
+
+  it('force-updates hours overwriting overlaps', async () => {
+    const t1 = await request(createApp())
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${getToken()}`)
+      .send({ plan_id: 1, date: '2026-08-01', start_hour: 8, end_hour: 10, description: '时段A' });
+    assert.equal(t1.status, 200);
+    const t2 = await request(createApp())
+      .post('/api/tasks')
+      .set('Authorization', `Bearer ${getToken()}`)
+      .send({ plan_id: 1, date: '2026-08-01', start_hour: 9, end_hour: 11, description: '时段B', force: true });
+    assert.equal(t2.status, 200);
+    const update = await request(createApp())
+      .put(`/api/tasks/${t2.body.id}`)
+      .set('Authorization', `Bearer ${getToken()}`)
+      .send({ start_hour: 10, end_hour: 12, force: true });
+    assert.equal(update.status, 200);
+    assert.equal(update.body.start_hour, 10);
   });
 
   it('deletes a task', async () => {

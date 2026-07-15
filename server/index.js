@@ -51,6 +51,11 @@ app.use('/api/plans', planRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/backup', backupRoutes);
 
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', uptime: process.uptime() });
+});
+
 app.use((err, req, res, next) => {
   logger.error(err);
   const { sendError } = require('./errors');

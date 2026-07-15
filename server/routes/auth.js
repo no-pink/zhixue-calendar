@@ -34,6 +34,7 @@ const auth = (req, res, next) => {
 router.post('/register', (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) throw new AppError('VALIDATION_ERROR', '用户名和密码不能为空');
+  if (password.length < 6) throw new AppError('VALIDATION_ERROR', '密码长度不能少于6位');
 
   const db = getDB();
   const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);

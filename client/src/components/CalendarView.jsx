@@ -136,7 +136,11 @@ export default function CalendarView({
       <div className="flex items-center justify-between mb-3">
         <button onClick={prevMonth} className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded">&lt;</button>
         <span className="text-sm font-medium text-gray-700">{year}年{month}月</span>
-        <button onClick={nextMonth} className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded">&gt;</button>
+        <div className="flex items-center gap-1">
+          <button onClick={() => { const t = new Date(); setYear(t.getFullYear()); setMonth(t.getMonth() + 1); }}
+            className="px-2 py-1 text-[10px] text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded transition-colors">今天</button>
+          <button onClick={nextMonth} className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded">&gt;</button>
+        </div>
       </div>
 
       {/* Multi-select toggle */}

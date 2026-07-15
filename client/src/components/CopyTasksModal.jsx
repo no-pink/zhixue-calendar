@@ -8,6 +8,8 @@ export default function CopyTasksModal({ planId, selectedTasks, onClose, onSucce
   const [plans, setPlans] = useState([]);
   const [targetDates, setTargetDates] = useState([]);
   const [dateInput, setDateInput] = useState('');
+  const [miniYear, setMiniYear] = useState(0);
+  const [miniMonth, setMiniMonth] = useState(0);
   const [conflictMode, setConflictMode] = useState('keep_both');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -16,6 +18,27 @@ export default function CopyTasksModal({ planId, selectedTasks, onClose, onSucce
   useEffect(() => {
     plansApi.list().then(setPlans).catch(console.error);
   }, []);
+
+  useEffect(() => {
+    if (!miniYear && selectedTasks.length > 0) {
+      const d = new Date();
+      setMiniYear(d.getFullYear());
+      setMiniMonth(d.getMonth() + 1);
+    }
+  }, [selectedTasks]);
+
+  const miniPrevMonth = () => {
+    if (miniMonth === 1) { setMiniYear(y => y - 1); setMiniMonth(12); }
+    else setMiniMonth(m => m - 1);
+  };
+  const miniNextMonth = () => {
+    if (miniMonth === 12) { setMiniYear(y => y + 1); setMiniMonth(1); }
+    else setMiniMonth(m => m + 1);
+  };
+
+  const toggleDate = (d) => {
+    setTargetDates(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort());
+  };
 
   const addDate = () => {
     if (dateInput && !targetDates.includes(dateInput)) {
@@ -94,6 +117,38 @@ export default function CopyTasksModal({ planId, selectedTasks, onClose, onSucce
             {/* Target dates */}
             <div>
               <label className="block text-xs text-gray-600 mb-1">目标日期</label>
+
+              {/* Mini calendar */}
+              {miniYear > 0 && (
+                <div className="mb-2 p-2 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between mb-1">
+                    <button onClick={miniPrevMonth} className="text-xs text-gray-500 hover:text-gray-700 px-1">&lt;</button>
+                    <span className="text-xs font-medium text-gray-700">{miniYear}年{miniMonth}月</span>
+                    <button onClick={miniNextMonth} className="text-xs text-gray-500 hover:text-gray-700 px-1">&gt;</button>
+                  </div>
+                  <div className="grid grid-cols-7 gap-0.5">
+                    {['日', '一', '二', '三', '四', '五', '六'].map(w => (
+                      <div key={w} className="text-center text-[10px] text-gray-400 py-0.5">{w}</div>
+                    ))}
+                    {Array.from({ length: new Date(miniYear, miniMonth - 1, 1).getDay() }).map((_, i) => (
+                      <div key={`e${i}`} />
+                    ))}
+                    {Array.from({ length: new Date(miniYear, miniMonth, 0).getDate() }).map((_, i) => {
+                      const d = i + 1;
+                      const dateStr = `${miniYear}-${String(miniMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                      const sel = targetDates.includes(dateStr);
+                      return (
+                        <button key={d} type="button" onClick={() => toggleDate(dateStr)}
+                          className={`text-xs rounded p-0.5 transition-colors ${sel ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-200'}`}>
+                          {d}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Manual input */}
               <div className="flex gap-1 mb-1">
                 <input type="date" value={dateInput} onChange={e => setDateInput(e.target.value)}
                   className="flex-1 px-2 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:border-blue-400" />

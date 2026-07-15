@@ -81,16 +81,16 @@ export default function TaskItem({ task, copyMode, selectedCopyTasks, setSelecte
         <div className="mt-2 pl-6 space-y-1">
           {task.submissions.map((sub, idx) => (
             <div key={idx} className="text-xs text-gray-500 flex items-center gap-1">
-              {sub.type === 'text' && <span>📝 {sub.content}</span>}
+              {sub.type === 'text' && <span><svg className="w-4 h-4 inline mr-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> {sub.content}</span>}
               {sub.type === 'image' && sub.file_path && (
                 <a href={`/api/uploads/${sub.file_path}`} target="_blank" rel="noreferrer">
                   <img src={`/api/uploads/${sub.file_path}`} alt={sub.content} className="max-w-[120px] max-h-[80px] rounded border cursor-pointer hover:opacity-80" />
                 </a>
               )}
-              {sub.type === 'link' && <span>🔗 <a href={sub.content} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">{sub.content}</a></span>}
+              {sub.type === 'link' && <span><svg className="w-4 h-4 inline mr-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg> <a href={sub.content} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">{sub.content}</a></span>}
               {sub.type === 'file' && sub.file_path && (
                 <a href={`/api/uploads/${sub.file_path}`} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline flex items-center gap-1">
-                  📎 {sub.content || sub.file_path}
+                  <svg className="w-4 h-4 inline shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" /></svg> {sub.content || sub.file_path}
                 </a>
               )}
             </div>

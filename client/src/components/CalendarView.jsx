@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { plans as plansApi } from '../api';
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
@@ -10,6 +10,8 @@ export default function CalendarView({
   const [month, setMonth] = useState(0);
   const [tasksByDate, setTasksByDate] = useState({});
   const [multiMode, setMultiMode] = useState(false);
+  const touchStartX = useRef(null);
+  const calendarRef = useRef(null);
 
   useEffect(() => {
     if (plan) {
@@ -31,6 +33,32 @@ export default function CalendarView({
     };
     load();
   }, [plan, refreshTrigger]);
+
+  // Keyboard navigation for months
+  useEffect(() => {
+    const el = calendarRef.current;
+    if (!el) return;
+    const handler = (e) => {
+      if (e.key === 'ArrowLeft') prevMonth();
+      else if (e.key === 'ArrowRight') nextMonth();
+    };
+    el.addEventListener('keydown', handler);
+    return () => el.removeEventListener('keydown', handler);
+  }, [year, month]); // re-attach when year/month changes so closure captures latest prev/next
+
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null) return;
+    const diff = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(diff) > 50) {
+      if (diff > 0) prevMonth();
+      else nextMonth();
+    }
+  };
 
   const [startYear, startMonth, startDay] = (plan?.start_date || '').split('-').map(Number);
   const [endYear, endMonth, endDay] = (plan?.end_date || '').split('-').map(Number);
@@ -161,8 +189,14 @@ export default function CalendarView({
         </div>
       )}
 
-      {/* Calendar wrapper */}
-      <div className="-mx-4 sm:-mx-6 px-4 sm:px-6">
+      {/* Calendar wrapper — touch + keyboard zone */}
+      <div
+        ref={calendarRef}
+        tabIndex={0}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        className="-mx-4 sm:-mx-6 px-4 sm:px-6 outline-none"
+      >
         {/* Mobile: single-row scrollable list */}
         <div className="md:hidden mb-2 overflow-y-auto max-h-[400px]">
           {Array.from({ length: daysInMonth }).map((_, i) => {

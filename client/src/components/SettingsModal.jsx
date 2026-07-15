@@ -86,7 +86,8 @@ export default function SettingsModal({ onClose }) {
             <div>
               <label className="block text-xs text-gray-600 mb-1">确认新密码</label>
               <input type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400" required />
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400" required
+                onKeyDown={e => { if (e.key === 'Enter') { e.currentTarget.form?.requestSubmit?.() || handleChangePassword(e); } }} />
             </div>
             {msg && <p className={`text-xs ${msg.includes('成功') ? 'text-green-500' : 'text-red-500'}`}>{msg}</p>}
             <button type="submit" className="w-full py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition-colors">

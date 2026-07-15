@@ -85,7 +85,8 @@ export default function PlanList({ onSelect, selectedPlanId, refreshTrigger, onP
           <div>
             <label className="block text-xs text-gray-500 mb-0.5">计划名称</label>
             <input type="text" value={name} onChange={e => setName(e.target.value)}
-              className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:border-blue-400" required />
+              className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:border-blue-400" required
+              onKeyDown={e => { if (e.key === 'Escape') { setShowCreate(false); setEditingPlan(null); setError(''); } }} />
           </div>
           <div className="flex gap-2">
             <div className="flex-1 min-w-0">

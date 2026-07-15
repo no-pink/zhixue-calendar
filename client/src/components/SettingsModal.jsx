@@ -4,7 +4,7 @@ import { backup as backupApi } from '../api';
 import JSZip from 'jszip';
 
 export default function SettingsModal({ onClose }) {
-  const { changePassword, logout } = useAuth();
+  const { changePassword } = useAuth();
   const [tab, setTab] = useState('password');
   const [oldPw, setOldPw] = useState('');
   const [newPw, setNewPw] = useState('');

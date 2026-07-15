@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { plans as plansApi } from '../api';
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];

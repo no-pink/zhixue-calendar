@@ -1,4 +1,5 @@
 const { getDB } = require('../db');
+const config = require('../config');
 
 function getPlansByUser(userId) {
   const db = getDB();
@@ -42,16 +43,17 @@ function updatePlan(id, fields) {
 }
 
 function deletePlanWithCleanup(db, planId) {
-  const path = require('path');
   const fs = require('fs');
+  const path = require('path');
 
+  const UPLOAD_DIR = config.uploadDir;
   const files = db.prepare(`
     SELECT s.file_path FROM submissions s
     JOIN tasks t ON t.id = s.task_id
     WHERE t.plan_id = ? AND s.file_path IS NOT NULL
   `).all(planId);
   files.forEach(s => {
-    const fp = path.join(__dirname, '../uploads', s.file_path);
+    const fp = path.join(UPLOAD_DIR, s.file_path);
     if (fs.existsSync(fp)) fs.unlinkSync(fp);
   });
 

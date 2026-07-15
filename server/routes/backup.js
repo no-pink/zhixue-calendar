@@ -6,9 +6,10 @@ const { getDB } = require('../db');
 const { auth } = require('./auth');
 const { AppError } = require('../errors');
 const logger = require('../logger');
+const config = require('../config');
 
 const router = express.Router();
-const UPLOAD_DIR = path.join(__dirname, '../uploads');
+const UPLOAD_DIR = config.uploadDir;
 
 router.use(auth);
 

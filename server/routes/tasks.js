@@ -11,8 +11,10 @@ const { AppError, sendConflict } = require('../errors');
 
 const router = express.Router();
 
+const UPLOAD_DIR = config.uploadDir;
+
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, '../uploads')),
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
     cb(null, `${uuidv4()}${ext}`);
@@ -144,7 +146,7 @@ router.delete('/:id', (req, res) => {
 
   const subs = db.prepare('SELECT file_path FROM submissions WHERE task_id = ? AND file_path IS NOT NULL').all(req.params.id);
   subs.forEach(s => {
-    const fp = path.join(__dirname, '../uploads', s.file_path);
+    const fp = path.join(UPLOAD_DIR, s.file_path);
     if (fs.existsSync(fp)) fs.unlinkSync(fp);
   });
 

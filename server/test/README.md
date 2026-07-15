@@ -12,7 +12,7 @@
 | **数据库** | SQLite 内存数据库 (:memory:)，与生产隔离 |
 | **测试文件** | `server/test/routes.test.js` |
 | **运行命令** | `cd server && npm test` 或 `npx mocha test/**/*.test.js --timeout 5000` |
-| **当前覆盖** | 20 个测试用例（auth × 5, plans × 3, tasks × 12） |
+| **当前覆盖** | 22 个测试用例（auth × 5, plans × 4, tasks × 13） |
 | **运行时间** | < 1 秒 |
 
 ---
@@ -94,30 +94,32 @@ testDb.prepare('INSERT OR IGNORE INTO plans (id, user_id, name, start_date, end_
 | 4 | `rejects wrong password` | 错误密码 → `AUTH_FAILED` 错误码 |
 | 5 | `rejects missing fields` | 缺少密码 → `VALIDATION_ERROR` |
 
-### 3.2 Plans（3 个用例）
+### 3.2 Plans（4 个用例）
 
 | # | 测试用例 | 验证点 |
 |---|---------|--------|
 | 6 | `creates a plan` | 创建成功返回计划对象 |
 | 7 | `rejects duplicate plan name` | 同名计划 → `CONFLICT` 错误码 |
 | 8 | `lists plans` | 列表返回数组，包含已创建的测试计划 |
+| 9 | `returns plan stats` | stats 返回 completion/trend/streak/hours 结构 |
 
-### 3.3 Tasks（12 个用例）
+### 3.3 Tasks（13 个用例）
 
 | # | 测试用例 | 验证点 |
 |---|---------|--------|
-| 9 | `creates a task` | 创建成功返回任务对象 |
-| 10 | `detects same name conflict` | 同名任务 → `CONFLICT_SAME_NAME` |
-| 11 | `detects time overlap conflict` | 时段重叠 → `CONFLICT_OVERLAP` |
-| 12 | `creates with force override` | force=true 覆盖冲突 |
-| 13 | `gets tasks by date` | 按日期获取任务列表 |
-| 14 | `toggles completion` | completed 从 0 变为 1 |
-| 15 | `updates a task` | 更新描述和时段 |
-| 16 | `rejects unauthorized access` | 其他用户的 token → `NOT_FOUND` |
-| 17 | `batch fills tasks` | 2天×2时段 = 4个任务 |
-| 18 | `copies tasks to other dates` | 复制任务到 2 个目标日期 |
-| 19 | `deletes a task` | 删除成功 → `OK` |
-| 20 | `rejects request without auth token` | 无 token → `AUTH_REQUIRED` |
+| 10 | `creates a task` | 创建成功返回任务对象 |
+| 11 | `detects same name conflict` | 同名任务 → `CONFLICT_SAME_NAME` |
+| 12 | `detects time overlap conflict` | 时段重叠 → `CONFLICT_OVERLAP` |
+| 13 | `creates with force override` | force=true 覆盖冲突 |
+| 14 | `gets tasks by date` | 按日期获取任务列表 |
+| 15 | `toggles completion` | completed 从 0 变为 1 |
+| 16 | `updates a task` | 更新描述和时段 |
+| 17 | `rejects unauthorized access` | 其他用户的 token → `NOT_FOUND` |
+| 18 | `batch fills tasks` | 2天×2时段 = 4个任务 |
+| 19 | `copies tasks to other dates` | 复制任务到 2 个目标日期 |
+| 20 | `force-updates hours overwriting overlaps` | force=true 更新时段自动删除重叠任务 |
+| 21 | `deletes a task` | 删除成功 → `OK` |
+| 22 | `rejects request without auth token` | 无 token → `AUTH_REQUIRED` |
 | 15 | `updates a task` | 更新描述和时段 |
 | 16 | `rejects unauthorized access` | 其他用户的 token → `NOT_FOUND` |
 | 17 | `batch fills tasks` | 2天×2时段 = 4个任务 |
@@ -378,6 +380,7 @@ describe('Tasks', () => {
 - [ ] **文件上传 MIME 校验测试**
 - [ ] **文件上传大小限制测试**
 - [ ] **/api/auth/me 测试**
-- [ ] **计划更新同名检测测试**
 - [ ] **日历统计准确度测试**
 - [ ] **提交物 created + updated 替换测试**
+- [ ] **stats 端点空数据测试**
+- [ ] **stats 端点越权访问测试**

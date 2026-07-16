@@ -117,7 +117,7 @@ function getPlanStats(planId) {
 
   const hours = db.prepare(`
     SELECT start_hour, COUNT(*) as count
-    FROM tasks WHERE plan_id = ? GROUP BY start_hour ORDER BY count DESC
+    FROM tasks WHERE plan_id = ? GROUP BY start_hour ORDER BY count DESC, start_hour ASC
   `).all(planId);
 
   return { completion, trend, streak: streakCount, hours };

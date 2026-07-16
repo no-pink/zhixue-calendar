@@ -42,7 +42,7 @@ export default function StatsCards({ planId, refreshTrigger }) {
       {/* 近 7 天趋势 */}
       <div className="bg-white rounded-xl border border-gray-100 p-4 flex flex-col">
         <span className="text-[10px] text-gray-400 mb-1">近 7 天趋势</span>
-        {trend.length > 0 ? (
+        {trend.some(d => d.total > 0) ? (
           <svg className="w-full h-10" viewBox={`0 0 ${Math.max(trend.length - 1, 1) * 30} 40`} preserveAspectRatio="none">
             <polyline
               fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
@@ -55,7 +55,7 @@ export default function StatsCards({ planId, refreshTrigger }) {
             />
           </svg>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-[10px] text-gray-300">无数据</div>
+          <div className="flex-1 flex items-center justify-center text-[10px] text-gray-300">近 7 天无任务</div>
         )}
       </div>
 

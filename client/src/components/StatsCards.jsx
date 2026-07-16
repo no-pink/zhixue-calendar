@@ -71,7 +71,7 @@ export default function StatsCards({ planId, refreshTrigger }) {
             {hours.slice(0, 6).map((h, i) => (
               <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
                 <span className="text-[9px] text-gray-500">{h.count}</span>
-                <div className="w-full bg-blue-100 rounded-t flex-1 w-full" style={{ height: `${Math.max((h.count / hours[0].count) * 28, 6)}px` }}>
+                <div className="w-full bg-blue-100 rounded-t" style={{ height: `${Math.max((h.count / hours[0].count) * 28, 6)}px` }}>
                   <div className="bg-blue-400 rounded-t w-full h-full" style={{ height: `${(h.count / hours[0].count) * 100}%` }} />
                 </div>
                 <span className="text-[9px] text-gray-400">{String(h.start_hour).padStart(2, '0')}:00</span>

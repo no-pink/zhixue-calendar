@@ -22,8 +22,6 @@ export default function StatsCards({ planId, refreshTrigger }) {
   const done = completion.completed || 0;
   const rate = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  const topHour = hours?.[0] ? `${String(hours[0].start_hour).padStart(2, '0')}:00` : '--';
-
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
       {/* 总体完成率 */}
@@ -68,15 +66,20 @@ export default function StatsCards({ planId, refreshTrigger }) {
       {/* 最活跃时段 */}
       <div className="bg-white rounded-xl border border-gray-100 p-4 flex flex-col">
         <span className="text-[10px] text-gray-400 mb-1">最活跃时段</span>
-        <span className="text-sm font-medium text-gray-700">{topHour}</span>
-        {hours?.[0] && (
-          <div className="flex gap-0.5 mt-1 items-end h-6">
+        {hours?.[0]?.count > 0 ? (
+          <div className="flex gap-1 mt-1 items-end h-8">
             {hours.slice(0, 6).map((h, i) => (
-              <div key={i} className="flex-1 bg-blue-100 rounded-t" style={{ height: `${Math.max((h.count / hours[0].count) * 100, 10)}%` }}>
-                <div className="bg-blue-400 rounded-t h-full" style={{ height: `${(h.count / hours[0].count) * 100}%` }} />
+              <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+                <span className="text-[9px] text-gray-500">{h.count}</span>
+                <div className="w-full bg-blue-100 rounded-t" style={{ height: `${Math.max((h.count / hours[0].count) * 28, 6)}px` }}>
+                  <div className="bg-blue-400 rounded-t w-full h-full" style={{ height: `${(h.count / hours[0].count) * 100}%` }} />
+                </div>
+                <span className="text-[9px] text-gray-400">{String(h.start_hour).padStart(2, '0')}:00</span>
               </div>
             ))}
           </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-[10px] text-gray-300">暂无数据</div>
         )}
       </div>
     </div>

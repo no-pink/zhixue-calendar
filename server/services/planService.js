@@ -79,15 +79,24 @@ function getPlanStats(planId) {
   const db = getDB();
 
   const completion = db.prepare(`
-    SELECT COUNT(*) as total, SUM(completed) as completed
+    SELECT COUNT(*) as total, COALESCE(SUM(completed), 0) as completed
     FROM tasks WHERE plan_id = ?
   `).get(planId);
 
-  const trend = db.prepare(`
-    SELECT date, COUNT(*) as total, SUM(completed) as completed
-    FROM tasks WHERE plan_id = ? GROUP BY date ORDER BY date DESC LIMIT 7
-  `).all(planId).reverse();
+  // 近 7 天趋势——确保返回完整的 7 天，无任务的天显示 0
+  const trend = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const row = db.prepare(`
+      SELECT COUNT(*) as total, COALESCE(SUM(completed), 0) as completed
+      FROM tasks WHERE plan_id = ? AND date = ?
+    `).get(planId, dateStr);
+    trend.push({ date: dateStr, total: row.total, completed: row.completed });
+  }
 
+  // 连续学习天数——从最近有完成记录的日期往前数
   const streak = db.prepare(`
     SELECT DISTINCT date FROM tasks
     WHERE plan_id = ? AND completed = 1
@@ -95,13 +104,15 @@ function getPlanStats(planId) {
   `).all(planId).map(r => r.date);
 
   let streakCount = 0;
-  const today = new Date().toISOString().slice(0, 10);
-  for (let i = 0; i < streak.length; i++) {
-    const expected = new Date();
-    expected.setDate(expected.getDate() - i);
-    const expectedStr = expected.toISOString().slice(0, 10);
-    if (streak[i] === expectedStr) streakCount++;
-    else break;
+  if (streak.length > 0) {
+    const startFrom = new Date(streak[0]);
+    for (let i = 0; ; i++) {
+      const expected = new Date(startFrom);
+      expected.setDate(expected.getDate() - i);
+      const expectedStr = expected.toISOString().slice(0, 10);
+      if (streak.includes(expectedStr)) streakCount++;
+      else break;
+    }
   }
 
   const hours = db.prepare(`

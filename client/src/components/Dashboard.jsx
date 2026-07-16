@@ -11,12 +11,18 @@ import { plans as plansApi } from '../api';
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
-  const [selectedPlan, setSelectedPlan] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedPlan, setSelectedPlan] = useState(() => {
+    const saved = sessionStorage.getItem('plan');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [selectedDate, setSelectedDate] = useState(() => sessionStorage.getItem('date') || null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [showBatch, setShowBatch] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [selectedDates, setSelectedDates] = useState([]);
+  const [selectedDates, setSelectedDates] = useState(() => {
+    const d = sessionStorage.getItem('date');
+    return d ? [d] : [];
+  });
   const [showTaskPanel, setShowTaskPanel] = useState(false);
   const [selectedCopyTasks, setSelectedCopyTasks] = useState([]);
   const [showCopy, setShowCopy] = useState(false);
@@ -43,6 +49,16 @@ export default function Dashboard() {
   }, []);
 
   const refresh = () => setRefreshKey(k => k + 1);
+
+  // Persist plan/date across refreshes
+  useEffect(() => {
+    if (selectedPlan) sessionStorage.setItem('plan', JSON.stringify(selectedPlan));
+    else sessionStorage.removeItem('plan');
+  }, [selectedPlan]);
+  useEffect(() => {
+    if (selectedDate) sessionStorage.setItem('date', selectedDate);
+    else sessionStorage.removeItem('date');
+  }, [selectedDate]);
 
   const handlePlanDeleted = () => {
     if (selectedPlan) {
@@ -119,7 +135,7 @@ export default function Dashboard() {
             <>
               {/* Calendar */}
               <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-                <StatsCards planId={selectedPlan.id} />
+                <StatsCards planId={selectedPlan.id} refreshTrigger={refreshKey} />
                 <CalendarView
                   plan={selectedPlan}
                   onSelectDate={date => {

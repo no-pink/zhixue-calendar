@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { plans as plansApi } from '../api';
 
-export default function StatsCards({ planId }) {
+export default function StatsCards({ planId, refreshTrigger }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -12,7 +12,7 @@ export default function StatsCards({ planId }) {
       .then(setStats)
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [planId]);
+  }, [planId, refreshTrigger]);
 
   if (loading) return null;
   if (!stats || !stats.completion) return null;

@@ -115,10 +115,16 @@ function getPlanStats(planId) {
     }
   }
 
-  const hours = db.prepare(`
+  // 最活跃时段返回完整的 0-23，无完成的显示 0
+  const raw = db.prepare(`
     SELECT start_hour, COUNT(*) as count
-    FROM tasks WHERE plan_id = ? AND completed = 1 GROUP BY start_hour ORDER BY count DESC, start_hour ASC
+    FROM tasks WHERE plan_id = ? AND completed = 1 GROUP BY start_hour
   `).all(planId);
+  const hours = Array.from({ length: 24 }, (_, i) => {
+    const found = raw.find(r => r.start_hour === i);
+    return { start_hour: i, count: found ? found.count : 0 };
+  }).filter(h => h.count > 0).sort((a, b) => b.count - a.count || a.start_hour - b.start_hour);
+  // 只返回有数据的时段，最多 6 个
 
   return { completion, trend, streak: streakCount, hours };
 }

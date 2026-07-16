@@ -67,10 +67,10 @@ export default function StatsCards({ planId, refreshTrigger }) {
       <div className="bg-white rounded-xl border border-gray-100 p-4 flex flex-col">
         <span className="text-[10px] text-gray-400 mb-2">最活跃时段（已完成）</span>
         {hours?.[0]?.count > 0 ? (
-          <div className="flex gap-1 items-end h-12">
+          <div className="flex gap-1.5 items-end h-16">
             {hours.slice(0, 6).map((h, i) => (
               <div key={i} className="flex-1 flex flex-col items-center justify-end gap-0.5">
-                <div className="w-full bg-blue-100 rounded-t relative" style={{ height: `${Math.max((h.count / hours[0].count) * 32, 6)}px` }}>
+                <div className="w-full bg-blue-100 rounded-t relative" style={{ height: `${Math.max((h.count / hours[0].count) * 48, 4)}px` }}>
                   <div className="bg-blue-400 rounded-t w-full h-full" style={{ height: `${(h.count / hours[0].count) * 100}%` }} />
                   <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-[9px] text-gray-500 whitespace-nowrap">{h.count}</span>
                 </div>
